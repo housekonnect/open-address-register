@@ -25,11 +25,13 @@ import org.locationtech.jts.geom.Point;
  * @param proposedLocation proposed (or captured) point, if any
  * @param decidedAt time of the decision
  * @param decisionReason written reason of a return
+ * @param photoSha256 verified SHA-256 of the attached photo
  */
 public record ChangeRequestDTO(UUID id, String kind, String state, String source, String summary,
                                @Nullable UUID targetObjectId, @Nullable UUID thoroughfareId, UUID adminUnitId,
                                UUID custodianId, String proposedBy, @Nullable String decidedBy,
                                @Nullable String photoObjectKey, OffsetDateTime createdAt,
                                @Nullable String proposedHouseNumber, @Nullable Point proposedLocation,
-                               @Nullable OffsetDateTime decidedAt, @Nullable String decisionReason) {
+                               @Nullable OffsetDateTime decidedAt, @Nullable String decisionReason,
+                               @Nullable String photoSha256) {
 }

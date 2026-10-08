@@ -1,6 +1,9 @@
 import { FieldCaptureMetadataToJSON, type FieldCapture, type FieldCaptureMetadata } from "@ugaddress/api-client";
 import type { QueuedCapture, UploadResult, Uploader } from "../queue/types";
 
+/** Problem title of a photo whose stored bytes differ from the device's SHA-256 (see the API contract). */
+export const PHOTO_INTEGRITY_TITLE = "Photo integrity check failed";
+
 export interface UploaderOptions {
   apiUrl: string;
   /** Returns a valid access token, refreshing it if needed; undefined if the user must sign in. */
@@ -18,6 +21,7 @@ export function captureMetadata(capture: QueuedCapture): FieldCaptureMetadata {
     accuracyMeters: capture.accuracyMeters,
     kind: capture.kind,
     note: capture.note,
+    photoSha256: capture.photoSha256,
   };
 }
 
@@ -54,10 +58,15 @@ export function createUploader(options: UploaderOptions): Uploader {
     }
     if (response.status === 401) return { ok: false, failure: { kind: "unauthorized" } };
     if (response.status >= 500 || response.status === 429) return { ok: false, failure: { kind: "server", status: response.status } };
-    const detail = await response
+    const problem = await response
       .json()
-      .then((problem: { detail?: string; title?: string }) => problem.detail ?? problem.title ?? "")
-      .catch(() => "");
-    return { ok: false, failure: { kind: "rejected", status: response.status, detail } };
+      .then((body: { detail?: string; title?: string }) => body)
+      .catch(() => ({}) as { detail?: string; title?: string });
+    // The stored photo did not match the hash taken on the device: the server kept nothing. The photo was hashed
+    // when it was taken, so the bytes most likely changed in transit; keep the capture and retry on the next sync.
+    if (response.status === 422 && problem.title === PHOTO_INTEGRITY_TITLE) {
+      return { ok: false, failure: { kind: "server", status: response.status } };
+    }
+    return { ok: false, failure: { kind: "rejected", status: response.status, detail: problem.detail ?? problem.title ?? "" } };
   };
 }

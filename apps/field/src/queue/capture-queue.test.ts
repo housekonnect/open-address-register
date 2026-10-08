@@ -33,6 +33,7 @@ const capture = (note: string): NewCapture => ({
   kind: "building",
   note,
   photoUri: `file:///captures/${note}.jpg`,
+  photoSha256: "a".repeat(64),
 });
 
 function newQueue() {
@@ -63,6 +64,8 @@ describe("CaptureQueue", () => {
     expect(register.changeRequests.size).toBe(0);
     const pending = await store.pending();
     expect(pending.map((c) => c.note)).toEqual(["first", "second"]);
+    // AND each keeps the photo hash taken on the device, to be sent with the upload
+    expect(pending.map((c) => c.photoSha256)).toEqual(["a".repeat(64), "a".repeat(64)]);
     expect(pending[0]?.attempts).toBe(1);
     expect(pending[0]?.lastError).toBe("network");
   });

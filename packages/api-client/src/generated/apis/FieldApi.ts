@@ -87,7 +87,7 @@ export interface FieldApiInterface {
   ): Promise<runtime.RequestOpts>;
 
   /**
-   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.  **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken and sends it as `metadata.photoSha256`. After storing the photo the server reads it back from object storage and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is `422`; otherwise the hash is kept with the evidence and in the audit event.
    * @summary Upload a field capture (point and photo)
    * @param {string} idempotencyKey Client-generated unique key (a UUID is recommended), reused unchanged on retries.
    * @param {FieldCaptureMetadata} metadata
@@ -102,7 +102,7 @@ export interface FieldApiInterface {
   ): Promise<runtime.ApiResponse<FieldCapture>>;
 
   /**
-   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.  **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken and sends it as `metadata.photoSha256`. After storing the photo the server reads it back from object storage and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is `422`; otherwise the hash is kept with the evidence and in the audit event.
    * Upload a field capture (point and photo)
    */
   createFieldCapture(
@@ -271,7 +271,7 @@ export class FieldApi extends runtime.BaseAPI implements FieldApiInterface {
   }
 
   /**
-   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.  **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken and sends it as `metadata.photoSha256`. After storing the photo the server reads it back from object storage and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is `422`; otherwise the hash is kept with the evidence and in the audit event.
    * Upload a field capture (point and photo)
    */
   async createFieldCaptureRaw(
@@ -288,7 +288,7 @@ export class FieldApi extends runtime.BaseAPI implements FieldApiInterface {
   }
 
   /**
-   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.  **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken and sends it as `metadata.photoSha256`. After storing the photo the server reads it back from object storage and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is `422`; otherwise the hash is kept with the evidence and in the audit event.
    * Upload a field capture (point and photo)
    */
   async createFieldCapture(

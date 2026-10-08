@@ -99,6 +99,11 @@ export function ChangeReview({ request, styleUrl }: { request: ChangeRequest; st
             ) : (
               <p className="text-muted-foreground">{t("evidence.noPhoto")}</p>
             )}
+            {request.evidence?.photoSha256 && (
+              <p className="break-all">
+                {t("evidence.sha256")}: <span className="font-mono text-xs">{request.evidence.photoSha256}</span>
+              </p>
+            )}
             {captured && (
               <p>
                 {t("evidence.location")}: <span className="font-mono">{`${captured[1].toFixed(6)}, ${captured[0].toFixed(6)}`}</span>

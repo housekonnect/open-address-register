@@ -163,8 +163,10 @@ pnpm --filter @ugaddress/field ios           # or: android (see note below)
 5. Check that the photo is in Record Store and the capture became one change request:
 
    ```sh
-   regsql "select id, source, photo_object_key from register.change_request where source = 'field' order by created_at desc limit 3"
+   regsql "select id, source, photo_object_key, photo_sha256 from register.change_request where source = 'field' order by created_at desc limit 3"
    ```
+
+   The app hashed the photo (SHA-256) on the phone when it was taken; the backend read the stored object back from Record Store, hashed it again and accepted the capture only because both matched. A mismatch is answered with `422` ("Photo integrity check failed"), nothing is kept, and the app retries on the next sync. The hash is shown with the evidence in the console inbox and recorded in the `field.photo_stored` audit event.
 
 6. Press **Sync now** again or retry the same upload: the idempotency key makes the server return the existing change request, and no duplicate is created. The same guarantee is covered by automated tests (`RegisterApiIT.fieldCaptureStoresThePhotoAndRetriesDoNotDuplicate` and the field app's queue tests).
 

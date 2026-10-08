@@ -74,6 +74,16 @@ public final class ProblemException extends RuntimeException {
     }
 
     /**
+     * Creates the 422 problem for a stored photo whose SHA-256 differs from the one computed on the device.
+     *
+     * @return the exception
+     */
+    public static ProblemException photoIntegrity() {
+        return new ProblemException(HttpStatus.UNPROCESSABLE_CONTENT, "Photo integrity check failed",
+            "The stored photo does not match the SHA-256 computed on the device. Nothing was kept; please retry.");
+    }
+
+    /**
      * Creates a 501 problem for a contracted operation that is not implemented yet.
      *
      * @param operation the operation id from the contract

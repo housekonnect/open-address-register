@@ -261,12 +261,14 @@ class RegisterApiIT extends AbstractIntegrationTest {
     @Test
     void fieldCaptureStoresThePhotoAndRetriesDoNotDuplicate() throws Exception {
         // GIVEN a capture made offline in Amani parish with a client-generated key
+        final byte[] photoBytes =
+            {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3, 4, (byte) 0xFF, (byte) 0xD9};
         final MockMultipartFile metadata = new MockMultipartFile("metadata", "", "application/json", """
             {"capturedAt": "2026-10-08T09:30:00Z", "kind": "building",
-             "location": {"type": "Point", "coordinates": [32.5945, 0.3502]}, "note": "New building, no plate yet"}
-            """.getBytes());
-        final MockMultipartFile photo = new MockMultipartFile("photo", "capture.jpg", "image/jpeg",
-            new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3, 4, (byte) 0xFF, (byte) 0xD9});
+             "location": {"type": "Point", "coordinates": [32.5945, 0.3502]}, "note": "New building, no plate yet",
+             "photoSha256": "%s"}
+            """.formatted(TestPhotos.sha256(photoBytes)).getBytes());
+        final MockMultipartFile photo = new MockMultipartFile("photo", "capture.jpg", "image/jpeg", photoBytes);
         final RequestPostProcessor verifier = user("verifier-1", "demo-city", Role.FIELD_VERIFIER);
 
         // WHEN it is synced, and the sync is retried with the same key

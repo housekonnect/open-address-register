@@ -14,7 +14,7 @@ All URIs are relative to *http://localhost:8080*
 
 Upload a field capture (point and photo)
 
-Stores the photo in object storage and creates a change request for the captured point. Requires the &#x60;field-verifier&#x60; role. The client generates the &#x60;Idempotency-Key&#x60; when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+Stores the photo in object storage and creates a change request for the captured point. Requires the &#x60;field-verifier&#x60; role. The client generates the &#x60;Idempotency-Key&#x60; when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned. **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken and sends it as &#x60;metadata.photoSha256&#x60;. After storing the photo the server reads it back from object storage and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is &#x60;422&#x60;; otherwise the hash is kept with the evidence and in the audit event.
 
 ### Example
 
@@ -77,14 +77,14 @@ example().catch(console.error);
 
 ### HTTP response details
 
-| Status code | Description                                                         | Response headers  |
-| ----------- | ------------------------------------------------------------------- | ----------------- |
-| **201**     | The capture was stored and a change request created.                | * Location - <br> |
-| **400**     | The request is malformed or fails validation.                       | -                 |
-| **401**     | A valid access token is required.                                   | -                 |
-| **403**     | The caller lacks the role or jurisdiction for this operation.       | -                 |
-| **413**     | The upload is too large.                                            | -                 |
-| **422**     | The Idempotency-Key was already used with a different request body. | -                 |
+| Status code | Description                                                                                                                                                                                              | Response headers  |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| **201**     | The capture was stored and a change request created.                                                                                                                                                     | * Location - <br> |
+| **400**     | The request is malformed or fails validation.                                                                                                                                                            | -                 |
+| **401**     | A valid access token is required.                                                                                                                                                                        | -                 |
+| **403**     | The caller lacks the role or jurisdiction for this operation.                                                                                                                                            | -                 |
+| **413**     | The upload is too large.                                                                                                                                                                                 | -                 |
+| **422**     | The stored photo does not match &#x60;metadata.photoSha256&#x60; (title \&quot;Photo integrity check failed\&quot;; nothing was kept), or the Idempotency-Key was already used with a different request. | -                 |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

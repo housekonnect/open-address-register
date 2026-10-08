@@ -96,7 +96,8 @@
       "title": "Evidence",
       "photoAlt": "Photo taken at the capture",
       "noPhoto": "No photo attached.",
-      "location": "Captured at"
+      "location": "Captured at",
+      "sha256": "SHA-256 (taken on the device, verified on upload)"
     },
     "decision": {
       "title": "Decision",

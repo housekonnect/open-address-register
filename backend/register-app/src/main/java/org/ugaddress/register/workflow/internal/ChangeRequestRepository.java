@@ -68,6 +68,7 @@ public class ChangeRequestRepository {
             .set(CHANGE_REQUEST.CUSTODIAN_ID, custodianId)
             .set(CHANGE_REQUEST.PROPOSAL, JSONB.valueOf(jsonMapper.writeValueAsString(proposal)))
             .set(CHANGE_REQUEST.PHOTO_OBJECT_KEY, draft.photoObjectKey())
+            .set(CHANGE_REQUEST.PHOTO_SHA256, draft.photoSha256())
             .set(CHANGE_REQUEST.PROPOSED_BY, proposedBy)
             .returning()
             .fetchSingle();
@@ -142,7 +143,7 @@ public class ChangeRequestRepository {
             r.getSource().getLiteral(), r.getSummary(), r.getTargetObjectId(), r.getThoroughfareId(),
             r.getAdminUnitId(), r.getCustodianId(), r.getProposedBy(), r.getDecidedBy(), r.getPhotoObjectKey(),
             r.getCreatedAt(), houseNumber.isString() ? houseNumber.asString() : null, location, r.getDecidedAt(),
-            r.getDecisionReason());
+            r.getDecisionReason(), r.getPhotoSha256());
     }
 
     /**

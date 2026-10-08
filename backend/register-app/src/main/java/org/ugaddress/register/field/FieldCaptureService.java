@@ -8,6 +8,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.ugaddress.register.audit.AuditEntryDTO;
@@ -31,6 +33,8 @@ public class FieldCaptureService {
 
     /** Operation id of {@code POST /v1/field/captures} in the contract. */
     public static final String CREATE_OPERATION = "createFieldCapture";
+
+    private static final Logger LOG = LoggerFactory.getLogger(FieldCaptureService.class);
 
     private static final Set<String> PHOTO_TYPES = Set.of("image/jpeg", "image/png");
     private static final int MAX_SUMMARY = 500;
@@ -82,13 +86,23 @@ public class FieldCaptureService {
 
         final String photoKey = photoKey(actor.subject(), idempotencyKey, capture.photoContentType());
         photos.store(photoKey, capture.photo(), capture.photoContentType());
+        // Integrity: hash what the object store actually holds, not what was received, and compare it with the hash
+        // the device computed when the photo was taken. On a mismatch nothing is kept: the object is deleted and the
+        // transaction (idempotency claim included) rolls back.
+        final String storedSha256 = photos.sha256(photoKey);
+        if (!storedSha256.equals(capture.photoSha256())) {
+            photos.delete(photoKey);
+            LOG.warn("Photo integrity check failed for a capture; nothing was kept");
+            throw ProblemException.photoIntegrity();
+        }
 
         final String summary = summary(capture);
         final ChangeRequestDTO created = changeRequests.submit(new NewChangeRequestDTO(
             capture.targetObjectId() == null ? "new_object" : "correction", "field", capture.targetObjectId(), null,
-            summary, capture.location(), null, photoKey), actor);
+            summary, capture.location(), null, photoKey, storedSha256), actor);
         audit.record(new AuditEntryDTO(actor.subject(), created.custodianId(), "field.photo_stored", "change_request",
-            created.id(), Map.of("contentType", capture.photoContentType(), "bytes", capture.photo().length)));
+            created.id(), Map.of("contentType", capture.photoContentType(), "bytes", capture.photo().length,
+                "sha256", storedSha256)));
         idempotency.complete(request, created.id(), HttpURLConnection.HTTP_CREATED);
         return toDto(created);
     }

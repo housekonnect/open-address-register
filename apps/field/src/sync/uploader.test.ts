@@ -11,6 +11,7 @@ const capture: QueuedCapture = {
   kind: "building",
   note: "No plate yet",
   photoUri: "file:///captures/1.jpg",
+  photoSha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   status: "pending",
   attempts: 0,
   lastError: null,
@@ -63,11 +64,25 @@ describe("createUploader", () => {
     expect((await uploaderWith(json(201, {}), null).upload(capture))).toEqual({ ok: false, failure: { kind: "unauthorized" } });
   });
 
+  it("retries a capture whose stored photo did not match the device's hash", async () => {
+    // GIVEN the server reports a photo integrity mismatch (it kept nothing)
+    const mismatch = json(422, { title: "Photo integrity check failed", status: 422, detail: "Nothing was kept" });
+    // WHEN the capture is uploaded
+    // THEN the capture stays pending for the next sync instead of being marked failed
+    expect(await uploaderWith(mismatch).upload(capture)).toEqual({ ok: false, failure: { kind: "server", status: 422 } });
+    // AND a reused idempotency key (also 422) is still a permanent rejection
+    expect(await uploaderWith(json(422, { title: "Idempotency key reused", detail: "reused" })).upload(capture)).toEqual({
+      ok: false,
+      failure: { kind: "rejected", status: 422, detail: "reused" },
+    });
+  });
+
   it("builds contract-conformant metadata", () => {
     expect(captureMetadata(capture)).toMatchObject({
       kind: "building",
       location: { type: "Point", coordinates: [32.5945, 0.3502] },
       note: "No plate yet",
+      photoSha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
     });
   });
 });

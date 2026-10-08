@@ -5,6 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { photoSha256 } from "../capture/photo-hash";
 import { config } from "../config";
 import { t, type MessageKey } from "../i18n";
 import type { CaptureKind, QueuedCapture } from "../queue/types";
@@ -19,13 +20,24 @@ interface Props {
   onSignOut: () => void;
 }
 
-/** Photo copied into the app's document directory so it survives until the capture is uploaded. */
-function keepPhoto(uri: string): string {
+interface KeptPhoto {
+  uri: string;
+  sha256: string;
+}
+
+/**
+ * Copies the photo into the app's document directory, so it survives until the capture is uploaded, and hashes
+ * the copy's bytes there and then: the backend compares this SHA-256 with the photo it stores.
+ */
+async function keepPhoto(uri: string): Promise<KeptPhoto> {
   const directory = new Directory(Paths.document, "captures");
   if (!directory.exists) directory.create({ intermediates: true, idempotent: true });
   const target = new File(directory, `${Crypto.randomUUID()}.jpg`);
   new File(uri).copy(target);
-  return target.uri;
+  const sha256 = await photoSha256(await target.bytes(), (data) =>
+    Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, data),
+  );
+  return { uri: target.uri, sha256 };
 }
 
 export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
@@ -35,14 +47,14 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
   const camera = useRef<CameraRef>(null);
   const [kind, setKind] = useState<CaptureKind>("building");
   const [note, setNote] = useState("");
-  const [photoUri, setPhotoUri] = useState<string>();
+  const [photo, setPhoto] = useState<KeptPhoto>();
   const [message, setMessage] = useState<string>();
 
   async function takePhoto() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) return setMessage(t("capture.cameraDenied"));
     const result = await ImagePicker.launchCameraAsync({ quality: 0.6, exif: false });
-    if (!result.canceled && result.assets[0]) setPhotoUri(keepPhoto(result.assets[0].uri));
+    if (!result.canceled && result.assets[0]) setPhoto(await keepPhoto(result.assets[0].uri));
   }
 
   async function showMyLocation() {
@@ -53,7 +65,7 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
   }
 
   async function save() {
-    if (!photoUri) return setMessage(t("capture.needPhoto"));
+    if (!photo) return setMessage(t("capture.needPhoto"));
     const permission = await Location.requestForegroundPermissionsAsync();
     if (!permission.granted) return setMessage(t("capture.locationDenied"));
     const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
@@ -63,10 +75,11 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
       accuracyMeters: position.coords.accuracy,
       kind,
       note: note.trim() === "" ? null : note.trim(),
-      photoUri,
+      photoUri: photo.uri,
+      photoSha256: photo.sha256,
     });
     setNote("");
-    setPhotoUri(undefined);
+    setPhoto(undefined);
     setMessage(t("capture.saved"));
   }
 
@@ -113,7 +126,7 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
       />
       <View style={styles.row}>
         <Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={() => void takePhoto()}>
-          <Text style={styles.secondaryButtonText}>{photoUri ? t("capture.photoTaken") : t("capture.photo")}</Text>
+          <Text style={styles.secondaryButtonText}>{photo ? t("capture.photoTaken") : t("capture.photo")}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" style={styles.button} onPress={() => void save()}>
           <Text style={styles.buttonText}>{t("capture.save")}</Text>

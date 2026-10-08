@@ -16,13 +16,18 @@ export interface QueuedCapture {
   note: string | null;
   /** Local file URI of the photo, inside the app's document directory. */
   photoUri: string;
+  /** SHA-256 of the photo bytes (lower-case hex), computed on the device when the photo was taken. */
+  photoSha256: string;
   status: CaptureStatus;
   attempts: number;
   lastError: string | null;
   changeRequestId: string | null;
 }
 
-export type NewCapture = Pick<QueuedCapture, "longitude" | "latitude" | "accuracyMeters" | "kind" | "note" | "photoUri">;
+export type NewCapture = Pick<
+  QueuedCapture,
+  "longitude" | "latitude" | "accuracyMeters" | "kind" | "note" | "photoUri" | "photoSha256"
+>;
 
 /** Persistence of the queue. Implemented with expo-sqlite on devices and in memory in tests. */
 export interface QueueStore {

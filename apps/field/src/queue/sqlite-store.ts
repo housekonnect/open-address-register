@@ -11,6 +11,7 @@ interface Row {
   kind: string;
   note: string | null;
   photo_uri: string;
+  photo_sha256: string;
   status: string;
   attempts: number;
   last_error: string | null;
@@ -28,6 +29,7 @@ const SCHEMA = `
     kind TEXT NOT NULL,
     note TEXT,
     photo_uri TEXT NOT NULL,
+    photo_sha256 TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'pending',
     attempts INTEGER NOT NULL DEFAULT 0,
     last_error TEXT,
@@ -47,6 +49,7 @@ function fromRow(row: Row): QueuedCapture {
     kind: row.kind as CaptureKind,
     note: row.note,
     photoUri: row.photo_uri,
+    photoSha256: row.photo_sha256,
     status: row.status as CaptureStatus,
     attempts: row.attempts,
     lastError: row.last_error,
@@ -60,16 +63,22 @@ export class SqliteQueueStore implements QueueStore {
 
   static async open(db: SQLiteDatabase): Promise<SqliteQueueStore> {
     await db.execAsync(`PRAGMA journal_mode = WAL; ${SCHEMA}`);
+    // Queues created before photo hashes existed get the column; their captures upload without a valid hash and
+    // the server rejects them, so no unverified photo is ever accepted.
+    const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(capture_queue)");
+    if (!columns.some((c) => c.name === "photo_sha256")) {
+      await db.execAsync("ALTER TABLE capture_queue ADD COLUMN photo_sha256 TEXT NOT NULL DEFAULT ''");
+    }
     return new SqliteQueueStore(db);
   }
 
   async insert(c: QueuedCapture): Promise<void> {
     await this.db.runAsync(
       `INSERT INTO capture_queue (id, idempotency_key, captured_at, longitude, latitude, accuracy_meters, kind, note,
-                                  photo_uri, status, attempts, last_error, change_request_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                  photo_uri, photo_sha256, status, attempts, last_error, change_request_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [c.id, c.idempotencyKey, c.capturedAt, c.longitude, c.latitude, c.accuracyMeters, c.kind, c.note, c.photoUri,
-        c.status, c.attempts, c.lastError, c.changeRequestId],
+        c.photoSha256, c.status, c.attempts, c.lastError, c.changeRequestId],
     );
   }
 

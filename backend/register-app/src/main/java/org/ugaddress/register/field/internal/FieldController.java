@@ -59,7 +59,7 @@ class FieldController implements FieldApi {
         final String contentType = photo.getContentType() == null ? "" : photo.getContentType();
         final NewFieldCaptureDTO capture = new NewFieldCaptureDTO(metadata.getKind().getValue(),
             GeoJson.fromApi(metadata.getLocation()), metadata.getTargetObjectId(), metadata.getNote(), bytes,
-            contentType);
+            contentType, metadata.getPhotoSha256());
         final FieldCaptureDTO result = captures.capture(idempotencyKey, jsonMapper.writeValueAsBytes(metadata),
             capture, actors.current());
         return ResponseEntity.created(URI.create("/v1/change-requests/" + result.changeRequestId()))

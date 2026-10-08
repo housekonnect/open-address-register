@@ -208,7 +208,8 @@ class ApprovalApiIT extends AbstractIntegrationTest {
         final byte[] photo = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 9, 8, 7, (byte) 0xFF, (byte) 0xD9};
         final MockMultipartFile metadata = new MockMultipartFile("metadata", "", "application/json", """
             {"capturedAt": "2026-10-08T10:00:00Z", "kind": "building",
-             "location": {"type": "Point", "coordinates": [32.5951, 0.3504]}}""".getBytes());
+             "location": {"type": "Point", "coordinates": [32.5951, 0.3504]}, "photoSha256": "%s"}"""
+            .formatted(TestPhotos.sha256(photo)).getBytes());
         final JsonNode capture = json.readTree(mvc.perform(multipart("/v1/field/captures").file(metadata)
                 .file(new MockMultipartFile("photo", "p.jpg", "image/jpeg", photo))
                 .header("Idempotency-Key", "evidence-0001").with(user("verifier-e", "demo-city", Role.FIELD_VERIFIER)))
@@ -220,6 +221,7 @@ class ApprovalApiIT extends AbstractIntegrationTest {
             // THEN the evidence lists the photo and the captured point
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.evidence.photo").value(true))
+            .andExpect(jsonPath("$.evidence.photoSha256").value(TestPhotos.sha256(photo)))
             .andExpect(jsonPath("$.evidence.location.coordinates[0]").value(32.5951))
             .andExpect(jsonPath("$.target.type").value("location"));
         mvc.perform(get("/v1/change-requests/{id}/photo", id).with(approver("approver-f")))

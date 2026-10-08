@@ -64,6 +64,10 @@ export interface FieldCaptureMetadata {
    * Free text about the place. Must not contain personal data.
    */
   note?: string | null;
+  /**
+   * SHA-256 of the photo bytes, lower-case hex, computed on the device when the photo was taken.
+   */
+  photoSha256: string;
 }
 
 /**
@@ -76,6 +80,8 @@ export function instanceOfFieldCaptureMetadata(
     return false;
   if (!("location" in value) || value["location"] === undefined) return false;
   if (!("kind" in value) || value["kind"] === undefined) return false;
+  if (!("photoSha256" in value) || value["photoSha256"] === undefined)
+    return false;
   return true;
 }
 
@@ -115,6 +121,7 @@ export function FieldCaptureMetadataFromJSONTyped(
         : json["note"] === null
           ? null
           : json["note"],
+    photoSha256: json["photoSha256"],
   };
 }
 
@@ -140,5 +147,6 @@ export function FieldCaptureMetadataToJSONTyped(
     kind: ObjectKindToJSON(value["kind"]),
     targetObjectId: value["targetObjectId"],
     note: value["note"],
+    photoSha256: value["photoSha256"],
   };
 }

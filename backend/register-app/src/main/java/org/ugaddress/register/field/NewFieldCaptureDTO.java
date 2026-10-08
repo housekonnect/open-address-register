@@ -15,9 +15,10 @@ import org.locationtech.jts.geom.Point;
  * @param note free text about the place; must not contain personal data
  * @param photo photo bytes
  * @param photoContentType {@code image/jpeg} or {@code image/png}
+ * @param photoSha256 SHA-256 of the photo computed on the device, lower-case hex
  */
 public record NewFieldCaptureDTO(String kind, Point location, @Nullable UUID targetObjectId, @Nullable String note,
-                                 byte[] photo, String photoContentType) {
+                                 byte[] photo, String photoContentType, String photoSha256) {
 
     /**
      * Creates the DTO.
@@ -28,12 +29,14 @@ public record NewFieldCaptureDTO(String kind, Point location, @Nullable UUID tar
      * @param note note
      * @param photo photo
      * @param photoContentType content type
+     * @param photoSha256 device-side SHA-256 of the photo
      */
     public NewFieldCaptureDTO {
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(location, "location");
         photo = photo.clone();
         Objects.requireNonNull(photoContentType, "photoContentType");
+        Objects.requireNonNull(photoSha256, "photoSha256");
     }
 
     @Override
@@ -46,12 +49,13 @@ public record NewFieldCaptureDTO(String kind, Point location, @Nullable UUID tar
         return other instanceof final NewFieldCaptureDTO that && kind.equals(that.kind)
             && location.equals(that.location) && Objects.equals(targetObjectId, that.targetObjectId)
             && Objects.equals(note, that.note) && Arrays.equals(photo, that.photo)
-            && photoContentType.equals(that.photoContentType);
+            && photoContentType.equals(that.photoContentType) && photoSha256.equals(that.photoSha256);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(kind, location, targetObjectId, note, Arrays.hashCode(photo), photoContentType);
+        return Objects.hash(kind, location, targetObjectId, note, Arrays.hashCode(photo), photoContentType,
+            photoSha256);
     }
 
     @Override

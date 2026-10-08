@@ -32,6 +32,10 @@ export interface ChangeEvidence {
    */
   photo: boolean;
   /**
+   * SHA-256 of the photo, computed on the device and verified against the stored object.
+   */
+  photoSha256?: string | null;
+  /**
    *
    */
   location?: Point;
@@ -60,6 +64,12 @@ export function ChangeEvidenceFromJSONTyped(
   }
   return {
     photo: json["photo"],
+    photoSha256:
+      json["photoSha256"] === undefined
+        ? undefined
+        : json["photoSha256"] === null
+          ? null
+          : json["photoSha256"],
     location:
       json["location"] == null ? undefined : PointFromJSON(json["location"]),
   };
@@ -79,6 +89,7 @@ export function ChangeEvidenceToJSONTyped(
 
   return {
     photo: value["photo"],
+    photoSha256: value["photoSha256"],
     location: PointToJSON(value["location"]),
   };
 }

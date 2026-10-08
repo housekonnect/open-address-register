@@ -10,6 +10,7 @@
 | `kind`           | [ObjectKind](ObjectKind.md) |
 | `targetObjectId` | string                      |
 | `note`           | string                      |
+| `photoSha256`    | string                      |
 
 ## Example
 
@@ -24,6 +25,7 @@ const example = {
   kind: null,
   targetObjectId: null,
   note: null,
+  photoSha256: null,
 } satisfies FieldCaptureMetadata;
 
 console.log(example);
