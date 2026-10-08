@@ -1,0 +1,819 @@
+openapi: 3.1.0
+info:
+  title: National Address Register API
+  version: 1.0.0-alpha.1
+  summary: One register, many custodians.
+  description: |
+    Public read API and custodian write API of the National Address Register (working name UGAddress).
+
+    **Conventions**
+    - Errors use RFC 9457 problem details (`application/problem+json`).
+    - Lists use opaque cursor pagination (`cursor`, `limit`, `nextCursor`).
+    - Single resources carry an `ETag`; send `If-None-Match` to receive `304 Not Modified`.
+    - Every POST requires an `Idempotency-Key` header. Replaying a key with the same body returns the original
+      response; reusing a key with a different body returns `422`.
+    - Operations that are contracted but not implemented yet return `501` as a problem detail.
+
+    **Privacy.** The register contains no personal data. Coordinates of residential entrances are never returned
+    to the public; they require the `register:partner` scope.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+servers:
+  - url: http://localhost:8080
+    description: Local development (make up)
+tags:
+  - name: resolve
+    description: Resolve, search and reverse lookup (read side).
+  - name: objects
+    description: Addressable objects and their history.
+  - name: changes
+    description: Change requests and the change feed.
+  - name: field
+    description: Field assignments and captures.
+
+security:
+  - {}
+  - bearerAuth: []
+
+paths:
+  /v1/resolve:
+    get:
+      operationId: resolve
+      tags: [resolve]
+      summary: Resolve a national ID or an alias to an address
+      description: |
+        `ref` is either a national ID in any display form (`4821 093 7618`, `4821-093-7618`, `DEMO 4821 093 7618`)
+        or an alias written as `<system>:<value>` (for example `kcca-plot:KLA-C-0042`).
+      parameters:
+        - name: ref
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: The resolved address.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resolution"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/search:
+    get:
+      operationId: search
+      tags: [resolve]
+      summary: Free-text address search (not implemented yet)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Matching addresses, best match first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+
+  /v1/reverse:
+    get:
+      operationId: reverse
+      tags: [resolve]
+      summary: Nearest addresses to a point (not implemented yet)
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Addresses ordered by distance.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+
+  /v1/objects/{id}:
+    get:
+      operationId: getObject
+      tags: [objects]
+      summary: Get an addressable object
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: The object.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressableObject"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/objects/{id}/history:
+    get:
+      operationId: getObjectHistory
+      tags: [objects]
+      summary: Get the recorded history of an addressable object, newest first
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of history entries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/change-requests:
+    post:
+      operationId: createChangeRequest
+      tags: [changes]
+      summary: Propose a change to the register
+      description: |
+        Creates a change request in state `submitted` and writes an audit event. Requires the
+        `custodian-editor` role; the target must lie in the caller's jurisdiction. The proposer can never approve
+        their own request (four-eyes rule).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeRequestCreate"
+      responses:
+        "201":
+          description: The change request was created.
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/IdempotencyConflict"
+
+  /v1/changes:
+    get:
+      operationId: listChanges
+      tags: [changes]
+      summary: Feed of register changes since a point in time (not implemented yet)
+      parameters:
+        - name: since
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Changes in commit order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangePage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+
+  /v1/field/assignments:
+    get:
+      operationId: listFieldAssignments
+      tags: [field]
+      summary: Assignments of the calling field verifier (not implemented yet)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of assignments.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldAssignmentPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          $ref: "#/components/responses/NotImplemented"
+
+  /v1/field/captures:
+    post:
+      operationId: createFieldCapture
+      tags: [field]
+      summary: Upload a field capture (point and photo)
+      description: |
+        Stores the photo in object storage and creates a change request for the captured point. Requires the
+        `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and
+        reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/FieldCaptureUpload"
+            encoding:
+              metadata:
+                contentType: application/json
+              photo:
+                contentType: image/jpeg, image/png
+      responses:
+        "201":
+          description: The capture was stored and a change request created.
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldCapture"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "422":
+          $ref: "#/components/responses/IdempotencyConflict"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token issued by the register's OpenID Connect provider (Authentik). Roles come from the `groups`
+        claim (`custodian-editor`, `custodian-approver`, `field-verifier`, `steward-admin`); the custodian comes
+        from the `custodian` claim. Partners additionally hold the `register:partner` scope, which unlocks
+        residential entrance coordinates.
+
+  parameters:
+    ObjectId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from a previous page's `nextCursor`.
+      schema:
+        type: string
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated unique key (a UUID is recommended), reused unchanged on retries.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: "^[A-Za-z0-9_-]+$"
+
+  headers:
+    ETag:
+      description: Entity tag of the returned representation.
+      schema:
+        type: string
+    Location:
+      description: URL of the created resource.
+      schema:
+        type: string
+        format: uri-reference
+
+  responses:
+    NotModified:
+      description: The representation has not changed since the given ETag.
+    BadRequest:
+      description: The request is malformed or fails validation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unauthorized:
+      description: A valid access token is required.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: The caller lacks the role or jurisdiction for this operation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Nothing matches.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    IdempotencyConflict:
+      description: The Idempotency-Key was already used with a different request body.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    PayloadTooLarge:
+      description: The upload is too large.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotImplemented:
+      description: The operation is contracted but not implemented yet.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          default: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+      additionalProperties: true
+
+    Point:
+      type: object
+      description: GeoJSON point in EPSG:4326, coordinates `[longitude, latitude]`.
+      required: [type, coordinates]
+      properties:
+        type:
+          type: string
+          enum: [Point]
+        coordinates:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            type: number
+            format: double
+
+    ObjectKind:
+      type: string
+      enum: [building, entrance, access_point, landmark, facility]
+
+    Lifecycle:
+      type: string
+      enum: [proposed, active, retired]
+
+    NationalIdStatus:
+      type: string
+      description: "`demonstration` marks synthetic data; such IDs display with a `DEMO` marker."
+      enum: [allocated, demonstration]
+
+    AdminUnitRef:
+      type: object
+      required: [id, level, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        level:
+          type: string
+          enum: [region, district, county, subcounty, parish, village, city, division]
+        name:
+          type: string
+
+    ThoroughfareRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    Alias:
+      type: object
+      required: [system, value]
+      properties:
+        system:
+          type: string
+          description: Identifier of the issuing system, e.g. `kcca-plot`.
+        value:
+          type: string
+
+    Entrance:
+      type: object
+      required: [id, nationalId, displayId, residential]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nationalId:
+          type: string
+          pattern: "^[0-9]{11}$"
+        displayId:
+          type: string
+        residential:
+          type: boolean
+        main:
+          type: boolean
+        location:
+          description: Omitted for residential entrances unless the caller holds `register:partner`.
+          $ref: "#/components/schemas/Point"
+
+    Address:
+      type: object
+      required: [id, houseNumber, thoroughfare, adminUnits, lines]
+      properties:
+        id:
+          type: string
+          format: uuid
+        houseNumber:
+          type: string
+        unit:
+          type: [string, "null"]
+        thoroughfare:
+          $ref: "#/components/schemas/ThoroughfareRef"
+        postcode:
+          type: [string, "null"]
+        adminUnits:
+          type: array
+          description: Administrative units from the smallest to the largest.
+          items:
+            $ref: "#/components/schemas/AdminUnitRef"
+        lines:
+          type: array
+          description: Formatted address lines for display.
+          items:
+            type: string
+
+    AddressableObject:
+      type: object
+      required: [id, nationalId, displayId, nationalIdStatus, kind, lifecycle, version, entrances, aliases]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nationalId:
+          type: string
+          pattern: "^[0-9]{11}$"
+        displayId:
+          type: string
+          description: Display form, e.g. `4821 093 7618` or `DEMO 4821 093 7618`.
+        nationalIdStatus:
+          $ref: "#/components/schemas/NationalIdStatus"
+        kind:
+          $ref: "#/components/schemas/ObjectKind"
+        lifecycle:
+          $ref: "#/components/schemas/Lifecycle"
+        name:
+          type: [string, "null"]
+          description: Name of a landmark or facility. Never a person's name.
+        location:
+          description: Representative point of the object. Public for buildings, landmarks and facilities.
+          $ref: "#/components/schemas/Point"
+        address:
+          $ref: "#/components/schemas/Address"
+        entrances:
+          type: array
+          items:
+            $ref: "#/components/schemas/Entrance"
+        aliases:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alias"
+        version:
+          type: integer
+          format: int64
+        validFrom:
+          type: string
+          format: date-time
+
+    Resolution:
+      type: object
+      required: [matchedBy, object]
+      properties:
+        matchedBy:
+          type: string
+          enum: [national_id, alias]
+        object:
+          $ref: "#/components/schemas/AddressableObject"
+
+    AddressPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AddressableObject"
+        nextCursor:
+          type: [string, "null"]
+
+    HistoryEntry:
+      type: object
+      required: [recordedAt, operation, version]
+      properties:
+        recordedAt:
+          type: string
+          format: date-time
+        operation:
+          type: string
+          enum: [insert, update, delete]
+        version:
+          type: integer
+          format: int64
+        lifecycle:
+          $ref: "#/components/schemas/Lifecycle"
+        validFrom:
+          type: [string, "null"]
+          format: date-time
+        validTo:
+          type: [string, "null"]
+          format: date-time
+        changeRequestId:
+          type: [string, "null"]
+          format: uuid
+
+    HistoryPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryEntry"
+        nextCursor:
+          type: [string, "null"]
+
+    ChangeKind:
+      type: string
+      enum: [correction, new_object, retirement]
+
+    ChangeRequestState:
+      type: string
+      enum: [submitted, in_review, approved, rejected, applied, withdrawn]
+
+    ChangeRequestCreate:
+      type: object
+      required: [kind, summary]
+      properties:
+        kind:
+          $ref: "#/components/schemas/ChangeKind"
+        targetObjectId:
+          type: [string, "null"]
+          format: uuid
+          description: The object to correct or retire. Required unless `kind` is `new_object`.
+        thoroughfareId:
+          type: [string, "null"]
+          format: uuid
+          description: Street the change refers to (for corrections of street data or new objects).
+        summary:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: What should change and why. Must not contain personal data.
+        proposedLocation:
+          $ref: "#/components/schemas/Point"
+        proposedHouseNumber:
+          type: [string, "null"]
+          maxLength: 20
+
+    ChangeRequest:
+      type: object
+      required: [id, kind, state, summary, createdAt, adminUnitId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/ChangeKind"
+        state:
+          $ref: "#/components/schemas/ChangeRequestState"
+        summary:
+          type: string
+        targetObjectId:
+          type: [string, "null"]
+          format: uuid
+        thoroughfareId:
+          type: [string, "null"]
+          format: uuid
+        adminUnitId:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [console, field]
+        createdAt:
+          type: string
+          format: date-time
+
+    Change:
+      type: object
+      required: [sequence, objectId, operation, recordedAt]
+      properties:
+        sequence:
+          type: integer
+          format: int64
+        objectId:
+          type: string
+          format: uuid
+        operation:
+          type: string
+          enum: [insert, update, delete]
+        recordedAt:
+          type: string
+          format: date-time
+
+    ChangePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Change"
+        nextCursor:
+          type: [string, "null"]
+
+    FieldAssignment:
+      type: object
+      required: [id, adminUnitId, dueBy]
+      properties:
+        id:
+          type: string
+          format: uuid
+        adminUnitId:
+          type: string
+          format: uuid
+        dueBy:
+          type: string
+          format: date
+
+    FieldAssignmentPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldAssignment"
+        nextCursor:
+          type: [string, "null"]
+
+    FieldCaptureMetadata:
+      type: object
+      required: [capturedAt, location, kind]
+      properties:
+        capturedAt:
+          type: string
+          format: date-time
+        location:
+          $ref: "#/components/schemas/Point"
+        accuracyMeters:
+          type: [number, "null"]
+          format: double
+          minimum: 0
+        kind:
+          $ref: "#/components/schemas/ObjectKind"
+        targetObjectId:
+          type: [string, "null"]
+          format: uuid
+        note:
+          type: [string, "null"]
+          maxLength: 500
+          description: Free text about the place. Must not contain personal data.
+
+    FieldCaptureUpload:
+      type: object
+      required: [metadata, photo]
+      properties:
+        metadata:
+          $ref: "#/components/schemas/FieldCaptureMetadata"
+        photo:
+          type: string
+          format: binary
+          description: JPEG or PNG photo, at most 10 MB.
+
+    FieldCapture:
+      type: object
+      required: [id, changeRequestId, photoStored, receivedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        changeRequestId:
+          type: string
+          format: uuid
+        photoStored:
+          type: boolean
+        receivedAt:
+          type: string
+          format: date-time

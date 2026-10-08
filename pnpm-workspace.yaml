@@ -1,5 +1,7 @@
 packages:
   - apps/*
   - packages/*
+allowBuilds:
+  '@openapitools/openapi-generator-cli': false
 minimumReleaseAgeExclude:
   - '@redocly/cli@2.60.0'
