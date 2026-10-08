@@ -14,6 +14,9 @@ RUN pnpm --filter "@ugaddress/console" build
 
 FROM node:24.21.0-trixie-slim AS runtime
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+# The runtime only runs `node server.js`; npm and corepack (with their own vulnerable dependencies) are not needed.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+      /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 WORKDIR /app
 COPY --from=build --chown=node:node /repo/apps/console/.next/standalone ./
 COPY --from=build --chown=node:node /repo/apps/console/.next/static ./apps/console/.next/static
