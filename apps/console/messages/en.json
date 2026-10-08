@@ -1,0 +1,45 @@
+{
+  "app": {
+    "name": "Address Register Console",
+    "signOut": "Sign out"
+  },
+  "home": {
+    "title": "Custodian console",
+    "intro": "Sign in with your custodian account to maintain streets and addresses in your jurisdiction.",
+    "signIn": "Sign in",
+    "loginFailed": "Signing in did not complete. Please try again."
+  },
+  "workspace": {
+    "mapTitle": "Your streets",
+    "mapIntro": "Streets maintained by {custodian} are highlighted. Select a street or building to propose a correction.",
+    "noCustodian": "Your account is not assigned to a custodian yet.",
+    "mapLabel": "Map of streets and buildings",
+    "legend": "Highlighted lines are your streets; grey lines belong to other custodians.",
+    "formTitle": "Propose a correction",
+    "selectHint": "Select a street or building on the map.",
+    "selected": "Describe what is wrong and what it should be.",
+    "layer": {
+      "street": "Street",
+      "building": "Building"
+    },
+    "summary": "What should change and why?",
+    "summaryPlaceholder": "e.g. The plate on the building shows number 5A.",
+    "noPersonalData": "Do not include names, phone numbers or ID numbers of residents.",
+    "houseNumber": "Proposed house number (optional)",
+    "submit": "Submit correction",
+    "submitting": "Submitting…",
+    "editorsOnly": "Only custodian editors can submit corrections.",
+    "submittedTitle": "Change request submitted",
+    "submitted": "Status: {state}. Reference:",
+    "errorTitle": "Not submitted",
+    "error": {
+      "unauthorized": "Your session has expired. Please sign in again.",
+      "forbidden": "This is outside your jurisdiction or your role does not allow it.",
+      "target": "Please select a street or building again.",
+      "summary": "Please describe the correction in 3 to 500 characters.",
+      "houseNumber": "House numbers are digits with an optional letter, e.g. 12 or 12A.",
+      "key": "Please try again.",
+      "failed": "The register could not be reached. Please try again."
+    }
+  }
+}

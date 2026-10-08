@@ -1,0 +1,67 @@
+{
+  "app": {
+    "name": "National Address Register",
+    "tagline": "One register, many custodians.",
+    "nav": {
+      "lookup": "Look up an address",
+      "developers": "Developers"
+    },
+    "footer": "Synthetic demonstration data. The register contains no personal data."
+  },
+  "home": {
+    "title": "Find an address",
+    "intro": "Enter the national address ID from a plate or document, or a reference from another register such as demo-plot:AMA-0001.",
+    "label": "National address ID or reference",
+    "placeholder": "e.g. 9526 184 5754",
+    "submit": "Look up",
+    "hint": {
+      "checkDigit": "This ID has a typo: the last digit does not match. Please check each digit.",
+      "format": "A national address ID has 11 digits.",
+      "valid": "Valid national address ID."
+    }
+  },
+  "lookup": {
+    "notFoundTitle": "Nothing found",
+    "notFound": "No address in the register matches “{ref}”.",
+    "invalidTitle": "Not a valid reference",
+    "invalid": "“{ref}” is not a valid national address ID or reference.",
+    "unavailable": "The register is not reachable right now. Please try again shortly.",
+    "back": "Search again"
+  },
+  "address": {
+    "demonstration": "Demonstration data",
+    "nationalId": "National address ID",
+    "adminUnits": "Administrative units",
+    "postcode": "Postcode",
+    "aliases": "Other references",
+    "entrances": "Entrances",
+    "entrancesCount": "{count, plural, =0 {No entrances recorded} one {# entrance} other {# entrances}}",
+    "residentialHidden": "Locations of residential entrances are shared with authorised partners only.",
+    "map": "Map of the address",
+    "qr": "QR code linking to this address",
+    "qrCaption": "Scan to open this address.",
+    "kind": {
+      "building": "Building",
+      "entrance": "Entrance",
+      "access_point": "Access point",
+      "landmark": "Landmark",
+      "facility": "Facility"
+    }
+  },
+  "developers": {
+    "title": "Developers",
+    "intro": "Everything in the register is available through one API, described by an OpenAPI 3.1 contract.",
+    "contract": "Download the OpenAPI contract",
+    "conventions": "Conventions",
+    "conventionList": {
+      "errors": "Errors are RFC 9457 problem details.",
+      "pagination": "Lists use cursor pagination.",
+      "etags": "Resources carry ETags; send If-None-Match to save bandwidth.",
+      "idempotency": "Every POST requires an Idempotency-Key header.",
+      "privacy": "Residential entrance coordinates require the register:partner scope."
+    },
+    "endpoints": "Endpoints",
+    "implemented": "available",
+    "planned": "planned"
+  }
+}

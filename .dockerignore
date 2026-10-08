@@ -1,0 +1,14 @@
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+backend
+db
+docs
+infra
+apps/field
+apps/portal/public/openapi.yaml

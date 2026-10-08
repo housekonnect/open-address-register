@@ -1,0 +1,124 @@
+/*
+ * Shared design tokens of the National Address Register web apps.
+ *
+ * Components use semantic tokens only (bg-background, text-muted-foreground, border-border …), never raw palette
+ * colours. Values are HSL so that MapLibre can read the map tokens at runtime.
+ * Apps import this file and add an @source for their own files.
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@source "../components";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.5rem;
+
+  --background: hsl(40 33% 98%);
+  --foreground: hsl(150 25% 12%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(150 25% 12%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(150 25% 12%);
+  --primary: hsl(152 55% 26%);
+  --primary-foreground: hsl(40 33% 98%);
+  --secondary: hsl(40 25% 92%);
+  --secondary-foreground: hsl(150 25% 16%);
+  --muted: hsl(40 20% 93%);
+  --muted-foreground: hsl(150 10% 38%);
+  --accent: hsl(43 90% 55%);
+  --accent-foreground: hsl(150 25% 12%);
+  --destructive: hsl(4 70% 46%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --success: hsl(152 55% 30%);
+  --border: hsl(40 15% 85%);
+  --input: hsl(40 15% 82%);
+  --ring: hsl(152 55% 32%);
+
+  /* Map layers (read by MapLibre at runtime). */
+  --map-background: hsl(40 30% 95%);
+  --map-boundary: hsl(150 10% 60%);
+  --map-street: hsl(150 10% 55%);
+  --map-street-own: hsl(152 55% 30%);
+  --map-building: hsl(40 15% 78%);
+  --map-building-outline: hsl(40 10% 60%);
+  --map-highlight: hsl(43 90% 50%);
+  --map-entrance: hsl(210 60% 45%);
+  --map-label: hsl(150 25% 15%);
+}
+
+.dark {
+  --background: hsl(150 20% 8%);
+  --foreground: hsl(40 25% 94%);
+  --card: hsl(150 18% 11%);
+  --card-foreground: hsl(40 25% 94%);
+  --popover: hsl(150 18% 11%);
+  --popover-foreground: hsl(40 25% 94%);
+  --primary: hsl(152 45% 52%);
+  --primary-foreground: hsl(150 25% 8%);
+  --secondary: hsl(150 12% 18%);
+  --secondary-foreground: hsl(40 25% 94%);
+  --muted: hsl(150 12% 16%);
+  --muted-foreground: hsl(40 10% 68%);
+  --accent: hsl(43 85% 58%);
+  --accent-foreground: hsl(150 25% 8%);
+  --destructive: hsl(4 70% 58%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --success: hsl(152 45% 52%);
+  --border: hsl(150 10% 22%);
+  --input: hsl(150 10% 26%);
+  --ring: hsl(152 45% 52%);
+
+  --map-background: hsl(150 15% 12%);
+  --map-boundary: hsl(150 8% 40%);
+  --map-street: hsl(150 8% 45%);
+  --map-street-own: hsl(152 45% 52%);
+  --map-building: hsl(150 8% 26%);
+  --map-building-outline: hsl(150 8% 40%);
+  --map-highlight: hsl(43 85% 58%);
+  --map-entrance: hsl(210 60% 62%);
+  --map-label: hsl(40 25% 92%);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    color-scheme: dark;
+  }
+}

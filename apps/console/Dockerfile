@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+# Builds the console from the monorepo root (context: repository root). Runtime configuration comes from the
+# environment (API_URL, TILES_URL, PUBLIC_URL, ...); no secrets are baked into the image.
+FROM node:24.21.0-trixie-slim AS build
+ENV CI=true NEXT_TELEMETRY_DISABLED=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+WORKDIR /repo
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY contracts ./contracts
+COPY packages ./packages
+COPY apps/console ./apps/console
+RUN pnpm install --frozen-lockfile --filter "@ugaddress/console..."
+RUN pnpm --filter "@ugaddress/console" build
+
+FROM node:24.21.0-trixie-slim AS runtime
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+WORKDIR /app
+COPY --from=build --chown=node:node /repo/apps/console/.next/standalone ./
+COPY --from=build --chown=node:node /repo/apps/console/.next/static ./apps/console/.next/static
+COPY --from=build --chown=node:node /repo/apps/console/public ./apps/console/public
+USER node
+EXPOSE 3000
+CMD ["node", "apps/console/server.js"]
