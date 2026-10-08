@@ -3,26 +3,29 @@ import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { config } from "../config";
+import { exchangeCode, isFresh, refreshTokens, type Tokens } from "./token-client";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const TOKEN_KEY = "ugaddress.tokens";
+const TOKEN_KEY = "ugaddress.tokens.v2";
 const redirectUri = AuthSession.makeRedirectUri({ scheme: config.scheme, path: "callback" });
 // expo-auth-session appends "/.well-known/openid-configuration"; Authentik issuers end with a slash.
 const discoveryUrl = config.oidcIssuer.replace(/\/+$/, "");
 
-async function loadTokens(): Promise<AuthSession.TokenResponse | undefined> {
+async function loadTokens(): Promise<Tokens | undefined> {
   const raw = await SecureStore.getItemAsync(TOKEN_KEY);
-  return raw ? new AuthSession.TokenResponse(JSON.parse(raw) as AuthSession.TokenResponseConfig) : undefined;
+  return raw ? (JSON.parse(raw) as Tokens) : undefined;
 }
 
-async function saveTokens(tokens: AuthSession.TokenResponse | undefined): Promise<void> {
-  if (tokens) await SecureStore.setItemAsync(TOKEN_KEY, JSON.stringify(tokens.getRequestConfig()));
+async function saveTokens(tokens: Tokens | undefined): Promise<void> {
+  if (tokens) await SecureStore.setItemAsync(TOKEN_KEY, JSON.stringify(tokens));
   else await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
 /**
  * OIDC authorization code flow with PKCE against Authentik (public client, no secret on the device).
+ * expo-auth-session runs the browser step; the token calls use our own client (see token-client.ts) because
+ * expo-auth-session strips the trailing slash Authentik's token endpoint needs.
  * Tokens live in the platform keystore (expo-secure-store) and are refreshed with the refresh token.
  */
 export function useAuth() {
@@ -33,7 +36,7 @@ export function useAuth() {
   );
   const [signedIn, setSignedIn] = useState<boolean>();
   const [exchangeFailed, setExchangeFailed] = useState(false);
-  const tokens = useRef<AuthSession.TokenResponse | undefined>(undefined);
+  const tokens = useRef<Tokens | undefined>(undefined);
 
   useEffect(() => {
     void loadTokens().then((loaded) => {
@@ -43,38 +46,49 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    if (response?.type !== "success" || !discovery || !request?.codeVerifier) return;
-    AuthSession.exchangeCodeAsync(
-      { clientId: config.clientId, code: response.params.code ?? "", redirectUri, extraParams: { code_verifier: request.codeVerifier } },
-      discovery,
-    )
+    const tokenEndpoint = discovery?.tokenEndpoint;
+    if (response?.type !== "success" || !tokenEndpoint || !request?.codeVerifier) return;
+    exchangeCode(tokenEndpoint, {
+      clientId: config.clientId,
+      code: response.params.code ?? "",
+      redirectUri,
+      codeVerifier: request.codeVerifier,
+    })
       .then(async (exchanged) => {
         tokens.current = exchanged;
         await saveTokens(exchanged);
         setExchangeFailed(false);
         setSignedIn(true);
       })
-      .catch(() => setExchangeFailed(true));
+      .catch((error: unknown) => {
+        console.warn("Token exchange failed:", error instanceof Error ? error.message : error);
+        setExchangeFailed(true);
+      });
   }, [response, discovery, request]);
 
   /** Returns a fresh access token, refreshing it when needed; undefined if the user must sign in again. */
   const getAccessToken = useCallback(async (): Promise<string | undefined> => {
     const current = tokens.current;
     if (!current) return undefined;
-    if (current.shouldRefresh() && current.refreshToken && discovery) {
-      try {
-        const refreshed = await current.refreshAsync({ clientId: config.clientId }, discovery);
-        tokens.current = refreshed;
-        await saveTokens(refreshed);
-        return refreshed.accessToken;
-      } catch {
-        return undefined;
-      }
+    if (isFresh(current)) return current.accessToken;
+    if (!current.refreshToken || !discovery?.tokenEndpoint) return undefined;
+    try {
+      const refreshed = await refreshTokens(discovery.tokenEndpoint, {
+        clientId: config.clientId,
+        refreshToken: current.refreshToken,
+      });
+      tokens.current = refreshed;
+      await saveTokens(refreshed);
+      return refreshed.accessToken;
+    } catch {
+      return undefined;
     }
-    return AuthSession.TokenResponse.isTokenFresh(current) ? current.accessToken : undefined;
   }, [discovery]);
 
-  const signIn = useCallback(() => void promptAsync(), [promptAsync]);
+  const signIn = useCallback(() => {
+    setExchangeFailed(false);
+    void promptAsync();
+  }, [promptAsync]);
   const signOut = useCallback(async () => {
     tokens.current = undefined;
     await saveTokens(undefined);
