@@ -2,10 +2,11 @@
 
 All URIs are relative to *http://localhost:8080*
 
-| Method                                                       | HTTP request                  | Description                                                     |
-| ------------------------------------------------------------ | ----------------------------- | --------------------------------------------------------------- |
-| [**createFieldCapture**](FieldApi.md#createfieldcapture)     | **POST** /v1/field/captures   | Upload a field capture (point and photo)                        |
-| [**listFieldAssignments**](FieldApi.md#listfieldassignments) | **GET** /v1/field/assignments | Assignments of the calling field verifier (not implemented yet) |
+| Method                                                         | HTTP request                           | Description                                                     |
+| -------------------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------- |
+| [**createFieldCapture**](FieldApi.md#createfieldcapture)       | **POST** /v1/field/captures            | Upload a field capture (point and photo)                        |
+| [**getChangeRequestPhoto**](FieldApi.md#getchangerequestphoto) | **GET** /v1/change-requests/{id}/photo | Evidence photo of a change request                              |
+| [**listFieldAssignments**](FieldApi.md#listfieldassignments)   | **GET** /v1/field/assignments          | Assignments of the calling field verifier (not implemented yet) |
 
 ## createFieldCapture
 
@@ -84,6 +85,78 @@ example().catch(console.error);
 | **403**     | The caller lacks the role or jurisdiction for this operation.       | -                 |
 | **413**     | The upload is too large.                                            | -                 |
 | **422**     | The Idempotency-Key was already used with a different request body. | -                 |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+## getChangeRequestPhoto
+
+> Blob getChangeRequestPhoto(id)
+
+Evidence photo of a change request
+
+Streams the photo attached to a field capture. Same access rule as the change request itself; clients never read the object store directly.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  FieldApi,
+} from '';
+import type { GetChangeRequestPhotoRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({
+    // Configure HTTP bearer authorization: bearerAuth
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new FieldApi(config);
+
+  const body = {
+    // string
+    id: 38400000-8cf0-11bd-b23e-10b96e4ef00d,
+  } satisfies GetChangeRequestPhotoRequest;
+
+  try {
+    const data = await api.getChangeRequestPhoto(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+| Name   | Type     | Description | Notes                     |
+| ------ | -------- | ----------- | ------------------------- |
+| **id** | `string` |             | [Defaults to `undefined`] |
+
+### Return type
+
+**Blob**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `image/jpeg`, `image/png`, `application/problem+json`
+
+### HTTP response details
+
+| Status code | Description                                                   | Response headers |
+| ----------- | ------------------------------------------------------------- | ---------------- |
+| **200**     | The photo.                                                    | -                |
+| **401**     | A valid access token is required.                             | -                |
+| **403**     | The caller lacks the role or jurisdiction for this operation. | -                |
+| **404**     | Nothing matches.                                              | -                |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

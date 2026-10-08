@@ -203,6 +203,36 @@ paths:
           $ref: "#/components/responses/NotFound"
 
   /v1/change-requests:
+    get:
+      operationId: listChangeRequests
+      tags: [changes]
+      summary: Approver inbox
+      description: |
+        Change requests inside the caller's jurisdiction, oldest first. Requires the `custodian-approver` role.
+        Each item carries `permissions`, so a client can tell whether the caller may decide it (four-eyes rule).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ChangeRequestState"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of change requests.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeRequestPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       operationId: createChangeRequest
       tags: [changes]
@@ -241,6 +271,137 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/IdempotencyConflict"
+
+  /v1/change-requests/{id}:
+    get:
+      operationId: getChangeRequest
+      tags: [changes]
+      summary: One change request with its diff and evidence
+      description: Requires the `custodian-approver` role; the change request must lie in the caller's jurisdiction.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChangeRequestId"
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: The change request.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeRequest"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/change-requests/{id}/photo:
+    get:
+      operationId: getChangeRequestPhoto
+      tags: [field]
+      summary: Evidence photo of a change request
+      description: |
+        Streams the photo attached to a field capture. Same access rule as the change request itself; clients never
+        read the object store directly.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChangeRequestId"
+      responses:
+        "200":
+          description: The photo.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/change-requests/{id}/approve:
+    post:
+      operationId: approveChangeRequest
+      tags: [changes]
+      summary: Approve a change request (four-eyes rule)
+      description: |
+        Requires the `custodian-approver` role and the change request's jurisdiction. The proposer can never approve
+        their own request: that answers `403`. Writes an audit event.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChangeRequestId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: The approved change request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/IdempotencyConflict"
+
+  /v1/change-requests/{id}/return:
+    post:
+      operationId: returnChangeRequest
+      tags: [changes]
+      summary: Return a change request to its proposer with a written reason (four-eyes rule)
+      description: |
+        Same rules as approving. The reason is shown to the proposer; it must not contain personal data. Writes an
+        audit event.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChangeRequestId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeRequestReturn"
+      responses:
+        "200":
+          description: The returned change request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/IdempotencyConflict"
 
@@ -375,6 +536,13 @@ components:
         minimum: 1
         maximum: 100
         default: 20
+    ChangeRequestId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     IfNoneMatch:
       name: If-None-Match
       in: header
@@ -426,6 +594,12 @@ components:
             $ref: "#/components/schemas/Problem"
     NotFound:
       description: Nothing matches.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Conflict:
+      description: The resource is not in a state that allows this operation (e.g. already decided).
       content:
         application/problem+json:
           schema:
@@ -721,7 +895,8 @@ components:
 
     ChangeRequestState:
       type: string
-      enum: [submitted, in_review, approved, rejected, applied, withdrawn]
+      description: "`returned`: sent back to the proposer with a written reason."
+      enum: [submitted, in_review, approved, rejected, returned, applied, withdrawn]
 
     ChangeRequestCreate:
       type: object
@@ -776,6 +951,108 @@ components:
         createdAt:
           type: string
           format: date-time
+        decidedAt:
+          type: [string, "null"]
+          format: date-time
+        decisionReason:
+          type: [string, "null"]
+          description: Written reason of a return.
+        proposal:
+          $ref: "#/components/schemas/ChangeProposal"
+        target:
+          $ref: "#/components/schemas/ChangeTarget"
+        diff:
+          type: array
+          description: Current and proposed values of every field the change touches.
+          items:
+            $ref: "#/components/schemas/ChangeDiff"
+        evidence:
+          $ref: "#/components/schemas/ChangeEvidence"
+        permissions:
+          $ref: "#/components/schemas/ChangePermissions"
+
+    ChangeProposal:
+      type: object
+      properties:
+        houseNumber:
+          type: [string, "null"]
+        location:
+          $ref: "#/components/schemas/Point"
+
+    ChangeTarget:
+      type: object
+      description: What the change refers to, for display and the map preview.
+      required: [type, label]
+      properties:
+        type:
+          type: string
+          enum: [object, street, location]
+        label:
+          type: string
+          description: Address line, street name or object name.
+        nationalId:
+          type: [string, "null"]
+          pattern: "^[0-9]{11}$"
+        displayId:
+          type: [string, "null"]
+        location:
+          $ref: "#/components/schemas/Point"
+
+    ChangeDiff:
+      type: object
+      required: [field]
+      properties:
+        field:
+          type: string
+          enum: [houseNumber, location]
+        current:
+          type: [string, "null"]
+        proposed:
+          type: [string, "null"]
+
+    ChangeEvidence:
+      type: object
+      required: [photo]
+      properties:
+        photo:
+          type: boolean
+          description: A photo is attached; fetch it from `/v1/change-requests/{id}/photo`.
+        location:
+          $ref: "#/components/schemas/Point"
+
+    ChangePermissions:
+      type: object
+      description: What the caller may do with this change request, computed by the server.
+      required: [decide]
+      properties:
+        decide:
+          type: boolean
+          description: Whether the caller may approve or return it.
+        reason:
+          type: [string, "null"]
+          description: Why not, if `decide` is false.
+          enum: [own_request, not_approver, outside_jurisdiction, already_decided, null]
+
+    ChangeRequestPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChangeRequest"
+        nextCursor:
+          type: [string, "null"]
+
+    ChangeRequestReturn:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Why the change is returned. Must not contain personal data.
 
     Change:
       type: object

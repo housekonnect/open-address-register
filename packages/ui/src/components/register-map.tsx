@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import {
   AttributionControl,
   Map as MapLibreMap,
+  Marker,
   NavigationControl,
   setWorkerUrl,
   type LngLatBoundsLike,
@@ -36,6 +37,8 @@ export interface RegisterMapProps {
   zoom?: number;
   highlightNationalId?: string | undefined;
   ownCustodian?: string | undefined;
+  /** A point to mark as `[longitude, latitude]`, e.g. where a field capture was made. */
+  marker?: [number, number] | undefined;
   /** Called when a street or building is clicked. Enables selection. */
   onSelect?: ((selection: MapSelection) => void) | undefined;
   /** Accessible label of the map region (translated by the caller). */
@@ -58,6 +61,7 @@ export function RegisterMap({
   zoom = 16,
   highlightNationalId,
   ownCustodian,
+  marker,
   onSelect,
   label,
   className,
@@ -72,6 +76,7 @@ export function RegisterMap({
 
   const [lon, lat] = center ?? [0, 0];
   const [west, south, east, north] = bounds ?? [];
+  const [markerLon, markerLat] = marker ?? [];
   React.useEffect(() => {
     const element = container.current;
     if (!element) return;
@@ -89,6 +94,11 @@ export function RegisterMap({
     });
     map.addControl(new AttributionControl({ compact: false }), "bottom-right");
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    if (markerLon !== undefined && markerLat !== undefined) {
+      const dot = document.createElement("div");
+      dot.className = "size-4 rounded-full border-2 border-background bg-primary shadow";
+      new Marker({ element: dot }).setLngLat([markerLon, markerLat]).addTo(map);
+    }
     mapRef.current = map;
     map.on("load", () => {
       map.setFilter("register-buildings-highlight", highlightFilter(highlightRef.current));
@@ -130,7 +140,7 @@ export function RegisterMap({
       mapRef.current = null;
       map.remove();
     };
-  }, [styleUrl, lon, lat, west, south, east, north, zoom, ownCustodian]);
+  }, [styleUrl, lon, lat, west, south, east, north, zoom, ownCustodian, markerLon, markerLat]);
 
   // Changing the highlighted building only updates a filter; the map and its view stay as they are.
   React.useEffect(() => {

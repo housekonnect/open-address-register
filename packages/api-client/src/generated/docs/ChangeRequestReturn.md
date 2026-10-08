@@ -1,19 +1,20 @@
-# ChangeRequestState
-
-`returned`: sent back to the proposer with a written reason.
+# ChangeRequestReturn
 
 ## Properties
 
-| Name | Type |
-| ---- | ---- |
+| Name     | Type   |
+| -------- | ------ |
+| `reason` | string |
 
 ## Example
 
 ```typescript
-import type { ChangeRequestState } from "";
+import type { ChangeRequestReturn } from "";
 
 // TODO: Update the object below with actual values
-const example = {} satisfies ChangeRequestState;
+const example = {
+  reason: null,
+} satisfies ChangeRequestReturn;
 
 console.log(example);
 
@@ -22,7 +23,7 @@ const exampleJSON: string = JSON.stringify(example);
 console.log(exampleJSON);
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as ChangeRequestState;
+const exampleParsed = JSON.parse(exampleJSON) as ChangeRequestReturn;
 console.log(exampleParsed);
 ```
 

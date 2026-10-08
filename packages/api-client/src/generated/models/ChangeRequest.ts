@@ -19,6 +19,34 @@ import {
   serializeDate,
   serializeDateTime,
 } from "../runtime";
+import type { ChangeProposal } from "./ChangeProposal";
+import {
+  ChangeProposalFromJSON,
+  ChangeProposalFromJSONTyped,
+  ChangeProposalToJSON,
+  ChangeProposalToJSONTyped,
+} from "./ChangeProposal";
+import type { ChangeEvidence } from "./ChangeEvidence";
+import {
+  ChangeEvidenceFromJSON,
+  ChangeEvidenceFromJSONTyped,
+  ChangeEvidenceToJSON,
+  ChangeEvidenceToJSONTyped,
+} from "./ChangeEvidence";
+import type { ChangePermissions } from "./ChangePermissions";
+import {
+  ChangePermissionsFromJSON,
+  ChangePermissionsFromJSONTyped,
+  ChangePermissionsToJSON,
+  ChangePermissionsToJSONTyped,
+} from "./ChangePermissions";
+import type { ChangeTarget } from "./ChangeTarget";
+import {
+  ChangeTargetFromJSON,
+  ChangeTargetFromJSONTyped,
+  ChangeTargetToJSON,
+  ChangeTargetToJSONTyped,
+} from "./ChangeTarget";
 import type { ChangeRequestState } from "./ChangeRequestState";
 import {
   ChangeRequestStateFromJSON,
@@ -26,6 +54,13 @@ import {
   ChangeRequestStateToJSON,
   ChangeRequestStateToJSONTyped,
 } from "./ChangeRequestState";
+import type { ChangeDiff } from "./ChangeDiff";
+import {
+  ChangeDiffFromJSON,
+  ChangeDiffFromJSONTyped,
+  ChangeDiffToJSON,
+  ChangeDiffToJSONTyped,
+} from "./ChangeDiff";
 import type { ChangeKind } from "./ChangeKind";
 import {
   ChangeKindFromJSON,
@@ -76,6 +111,34 @@ export interface ChangeRequest {
    *
    */
   createdAt: Date;
+  /**
+   *
+   */
+  decidedAt?: Date | null;
+  /**
+   * Written reason of a return.
+   */
+  decisionReason?: string | null;
+  /**
+   *
+   */
+  proposal?: ChangeProposal;
+  /**
+   *
+   */
+  target?: ChangeTarget;
+  /**
+   * Current and proposed values of every field the change touches.
+   */
+  diff?: Array<ChangeDiff>;
+  /**
+   *
+   */
+  evidence?: ChangeEvidence;
+  /**
+   *
+   */
+  permissions?: ChangePermissions;
 }
 
 /**
@@ -136,6 +199,36 @@ export function ChangeRequestFromJSONTyped(
       json["createdAt"] == null
         ? json["createdAt"]
         : parseDateTime(json["createdAt"]),
+    decidedAt:
+      json["decidedAt"] === undefined
+        ? undefined
+        : json["decidedAt"] === null
+          ? null
+          : parseDateTime(json["decidedAt"]),
+    decisionReason:
+      json["decisionReason"] === undefined
+        ? undefined
+        : json["decisionReason"] === null
+          ? null
+          : json["decisionReason"],
+    proposal:
+      json["proposal"] == null
+        ? undefined
+        : ChangeProposalFromJSON(json["proposal"]),
+    target:
+      json["target"] == null ? undefined : ChangeTargetFromJSON(json["target"]),
+    diff:
+      json["diff"] == null
+        ? undefined
+        : (json["diff"] as Array<any>).map(ChangeDiffFromJSON),
+    evidence:
+      json["evidence"] == null
+        ? undefined
+        : ChangeEvidenceFromJSON(json["evidence"]),
+    permissions:
+      json["permissions"] == null
+        ? undefined
+        : ChangePermissionsFromJSON(json["permissions"]),
   };
 }
 
@@ -164,5 +257,18 @@ export function ChangeRequestToJSONTyped(
       value["createdAt"] == null
         ? value["createdAt"]
         : serializeDateTime(value["createdAt"]),
+    decidedAt:
+      value["decidedAt"] == null
+        ? value["decidedAt"]
+        : serializeDateTime(value["decidedAt"]),
+    decisionReason: value["decisionReason"],
+    proposal: ChangeProposalToJSON(value["proposal"]),
+    target: ChangeTargetToJSON(value["target"]),
+    diff:
+      value["diff"] == null
+        ? undefined
+        : (value["diff"] as Array<any>).map(ChangeDiffToJSON),
+    evidence: ChangeEvidenceToJSON(value["evidence"]),
+    permissions: ChangePermissionsToJSON(value["permissions"]),
   };
 }

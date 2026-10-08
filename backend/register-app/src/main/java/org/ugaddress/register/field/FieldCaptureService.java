@@ -93,6 +93,22 @@ public class FieldCaptureService {
         return toDto(created);
     }
 
+    /**
+     * Loads the evidence photo of a change request for a caller who may see that request.
+     *
+     * @param changeRequestId change request id
+     * @param actor the caller; must be a custodian approver in the request's jurisdiction
+     * @return the photo
+     * @throws ProblemException 403 if the caller may not see the request, 404 if there is no photo
+     */
+    @Transactional(readOnly = true)
+    public PhotoDTO evidencePhoto(final UUID changeRequestId, final CurrentActor actor) {
+        final String key = changeRequests.evidencePhotoKey(changeRequestId, actor);
+        return photos.load(key)
+            .map(p -> new PhotoDTO(p.content(), p.contentType()))
+            .orElseThrow(() -> ProblemException.notFound("The photo of this change request is missing."));
+    }
+
     private static FieldCaptureDTO toDto(final ChangeRequestDTO changeRequest) {
         return new FieldCaptureDTO(changeRequest.id(), changeRequest.id(), changeRequest.photoObjectKey() != null,
             changeRequest.createdAt());

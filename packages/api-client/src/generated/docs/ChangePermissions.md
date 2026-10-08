@@ -1,19 +1,24 @@
-# ChangeRequestState
+# ChangePermissions
 
-`returned`: sent back to the proposer with a written reason.
+What the caller may do with this change request, computed by the server.
 
 ## Properties
 
-| Name | Type |
-| ---- | ---- |
+| Name     | Type    |
+| -------- | ------- |
+| `decide` | boolean |
+| `reason` | string  |
 
 ## Example
 
 ```typescript
-import type { ChangeRequestState } from "";
+import type { ChangePermissions } from "";
 
 // TODO: Update the object below with actual values
-const example = {} satisfies ChangeRequestState;
+const example = {
+  decide: null,
+  reason: null,
+} satisfies ChangePermissions;
 
 console.log(example);
 
@@ -22,7 +27,7 @@ const exampleJSON: string = JSON.stringify(example);
 console.log(exampleJSON);
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as ChangeRequestState;
+const exampleParsed = JSON.parse(exampleJSON) as ChangePermissions;
 console.log(exampleParsed);
 ```
 

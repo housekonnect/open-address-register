@@ -62,7 +62,7 @@ grep TEST_USER_PASSWORD .env
 | Username | Group | Custodian | Can do |
 |---|---|---|---|
 | `editor` | custodian-editor | demo-city (Amani Parish) | submit corrections in the console |
-| `approver` | custodian-approver | demo-city | approve change requests (service level; no UI yet) |
+| `approver` | custodian-approver, custodian-editor | demo-city | decide change requests in the console inbox; also proposes, to show the four-eyes rule |
 | `verifier` | field-verifier | demo-city | log in to the field app and upload captures |
 | `steward` | steward-admin | demo-ministry (whole demo district) | — (reserved for administration) |
 
@@ -134,6 +134,18 @@ Reverse lookups return the nearest street (with postcode and admin units, distan
    ```
 
 Submitting a building on Mirembe Road (another custodian's area) is refused: row-level security only lets a custodian write inside its jurisdiction.
+
+### 4b. Console: approve or return (four-eyes rule)
+
+1. Sign out, then **Sign in** as `approver` and open **Inbox**. It lists the submitted change requests of demo-city, oldest first.
+2. Open the correction from step 4: a map preview with the building highlighted, the diff (current and proposed house number) and the evidence (photo and capture point for field captures).
+3. **Approve** it, or write a reason and **Return to proposer**. Every decision writes an audit event:
+
+   ```sh
+   regsql "select seq, action, payload from register.audit_event where action like 'change_request.%' order by seq desc limit 3"
+   ```
+
+4. `approver` is also an editor: submit a correction as `approver` on the map, then open it in the inbox. **Approve** and **Return** are disabled with the four-eyes explanation, and the API answers `403` if called directly.
 
 ### 5. Field app: capture offline, sync once
 

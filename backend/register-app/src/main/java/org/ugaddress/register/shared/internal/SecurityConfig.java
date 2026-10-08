@@ -43,6 +43,11 @@ class SecurityConfig {
             .authorizeHttpRequests(requests -> requests
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/change-requests").hasAuthority(Role.CUSTODIAN_EDITOR.authority())
+                // Approver inbox, evidence and decisions; the service also checks jurisdiction and the four-eyes rule.
+                .requestMatchers(HttpMethod.POST, "/v1/change-requests/*/approve", "/v1/change-requests/*/return")
+                    .hasAuthority(Role.CUSTODIAN_APPROVER.authority())
+                .requestMatchers(HttpMethod.GET, "/v1/change-requests", "/v1/change-requests/**")
+                    .hasAuthority(Role.CUSTODIAN_APPROVER.authority())
                 .requestMatchers("/v1/field/**").hasAuthority(Role.FIELD_VERIFIER.authority())
                 .requestMatchers(HttpMethod.GET, "/v1/**").permitAll()
                 .anyRequest().denyAll())

@@ -7,16 +7,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.JSONB;
+import org.jspecify.annotations.Nullable;
+import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Repository;
 import org.ugaddress.db.generated.enums.ChangeKind;
 import org.ugaddress.db.generated.enums.ChangeSource;
 import org.ugaddress.db.generated.enums.ChangeState;
 import org.ugaddress.db.generated.tables.records.ChangeRequestRecord;
 import org.ugaddress.register.workflow.ChangeRequestDTO;
+import org.ugaddress.register.shared.GeoJson;
 import org.ugaddress.register.workflow.NewChangeRequestDTO;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -69,13 +75,39 @@ public class ChangeRequestRepository {
     }
 
     /**
+     * Lists change requests of some admin units, oldest first.
+     *
+     * @param adminUnitIds the admin units (a jurisdiction)
+     * @param state only this state, or {@code null} for all
+     * @param after position of the last item of the previous page, or {@code null}
+     * @param limit maximum rows
+     * @return the change requests
+     */
+    public List<ChangeRequestDTO> list(final Set<UUID> adminUnitIds, final @Nullable ChangeState state,
+                                       final @Nullable InboxPosition after, final int limit) {
+        Condition condition = CHANGE_REQUEST.ADMIN_UNIT_ID.in(adminUnitIds);
+        if (state != null) {
+            condition = condition.and(CHANGE_REQUEST.STATE.eq(state));
+        }
+        if (after != null) {
+            condition = condition.and(CHANGE_REQUEST.CREATED_AT.gt(after.createdAt())
+                .or(CHANGE_REQUEST.CREATED_AT.eq(after.createdAt()).and(CHANGE_REQUEST.ID.gt(after.id()))));
+        }
+        return dsl.selectFrom(CHANGE_REQUEST)
+            .where(condition)
+            .orderBy(CHANGE_REQUEST.CREATED_AT, CHANGE_REQUEST.ID)
+            .limit(limit)
+            .fetch(this::toDto);
+    }
+
+    /**
      * Finds a change request.
      *
      * @param id id
      * @return the change request
      */
     public Optional<ChangeRequestDTO> find(final UUID id) {
-        return dsl.selectFrom(CHANGE_REQUEST).where(CHANGE_REQUEST.ID.eq(id)).fetchOptional(ChangeRequestRepository::toDto);
+        return dsl.selectFrom(CHANGE_REQUEST).where(CHANGE_REQUEST.ID.eq(id)).fetchOptional(this::toDto);
     }
 
     /**
@@ -84,22 +116,41 @@ public class ChangeRequestRepository {
      * @param id change request id
      * @param state new state
      * @param decidedBy opaque subject of the decider
+     * @param reason written reason (required for a return), or {@code null}
      * @return the updated change request
      */
-    public ChangeRequestDTO decide(final UUID id, final ChangeState state, final String decidedBy) {
+    public ChangeRequestDTO decide(final UUID id, final ChangeState state, final String decidedBy,
+                                   final @Nullable String reason) {
         return toDto(dsl.update(CHANGE_REQUEST)
             .set(CHANGE_REQUEST.STATE, state)
             .set(CHANGE_REQUEST.DECIDED_BY, decidedBy)
             .set(CHANGE_REQUEST.DECIDED_AT, OffsetDateTime.now())
+            .set(CHANGE_REQUEST.DECISION_REASON, reason)
             .where(CHANGE_REQUEST.ID.eq(id))
             .returning()
             .fetchSingle());
     }
 
-    private static ChangeRequestDTO toDto(final ChangeRequestRecord r) {
+    private ChangeRequestDTO toDto(final ChangeRequestRecord r) {
+        final JsonNode proposal = jsonMapper.readTree(r.getProposal().data());
+        final JsonNode houseNumber = proposal.path("houseNumber");
+        final JsonNode coordinates = proposal.path("location").path("coordinates");
+        final Point location = coordinates.size() == 2
+            ? GeoJson.point(coordinates.get(0).asDouble(), coordinates.get(1).asDouble())
+            : null;
         return new ChangeRequestDTO(r.getId(), r.getKind().getLiteral(), r.getState().getLiteral(),
             r.getSource().getLiteral(), r.getSummary(), r.getTargetObjectId(), r.getThoroughfareId(),
             r.getAdminUnitId(), r.getCustodianId(), r.getProposedBy(), r.getDecidedBy(), r.getPhotoObjectKey(),
-            r.getCreatedAt());
+            r.getCreatedAt(), houseNumber.isString() ? houseNumber.asString() : null, location, r.getDecidedAt(),
+            r.getDecisionReason());
+    }
+
+    /**
+     * Position in the inbox: creation time, then id.
+     *
+     * @param createdAt creation time of the last item
+     * @param id id of the last item
+     */
+    public record InboxPosition(OffsetDateTime createdAt, UUID id) {
     }
 }

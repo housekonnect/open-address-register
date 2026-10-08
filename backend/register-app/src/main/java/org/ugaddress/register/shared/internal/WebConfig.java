@@ -8,17 +8,31 @@ import java.io.IOException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.format.FormatterRegistry;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.ugaddress.api.v1.model.ChangeRequestState;
 
 /**
  * HTTP caching for the API: every successful GET carries an ETag and honours {@code If-None-Match}.
  *
- * <p>Responses differ by authorization (partners see more), so they also vary on {@code Authorization}.
+ * <p>Responses differ by authorization (partners see more), so they also vary on {@code Authorization}. Query
+ * parameters typed as contract enums are converted from their contract values (e.g. {@code state=submitted}).
  */
 @Configuration(proxyBeanMethods = false)
 class WebConfig {
+
+    @Bean
+    WebMvcConfigurer contractEnumConverters() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addFormatters(final FormatterRegistry registry) {
+                registry.addConverter(String.class, ChangeRequestState.class, ChangeRequestState::fromValue);
+            }
+        };
+    }
 
     @Bean
     FilterRegistrationBean<ShallowEtagHeaderFilter> etagFilter() {

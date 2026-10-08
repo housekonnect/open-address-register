@@ -1,19 +1,22 @@
-# ChangeRequestState
-
-`returned`: sent back to the proposer with a written reason.
+# ChangeProposal
 
 ## Properties
 
-| Name | Type |
-| ---- | ---- |
+| Name          | Type              |
+| ------------- | ----------------- |
+| `houseNumber` | string            |
+| `location`    | [Point](Point.md) |
 
 ## Example
 
 ```typescript
-import type { ChangeRequestState } from "";
+import type { ChangeProposal } from "";
 
 // TODO: Update the object below with actual values
-const example = {} satisfies ChangeRequestState;
+const example = {
+  houseNumber: null,
+  location: null,
+} satisfies ChangeProposal;
 
 console.log(example);
 
@@ -22,7 +25,7 @@ const exampleJSON: string = JSON.stringify(example);
 console.log(exampleJSON);
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as ChangeRequestState;
+const exampleParsed = JSON.parse(exampleJSON) as ChangeProposal;
 console.log(exampleParsed);
 ```
 

@@ -193,7 +193,8 @@ entries:
       email: approver@ugaddress.invalid
       password: !Env TEST_USER_PASSWORD
       attributes: {custodian: demo-city}
-      groups: [!KeyOf group-approver]
+      # Also an editor, so that one person can propose a change and see the four-eyes rule stop them approving it.
+      groups: [!KeyOf group-approver, !KeyOf group-editor]
   - model: authentik_core.user
     identifiers: {username: verifier}
     attrs:

@@ -13,6 +13,13 @@
 | `adminUnitId`    | string                                      |
 | `source`         | string                                      |
 | `createdAt`      | Date                                        |
+| `decidedAt`      | Date                                        |
+| `decisionReason` | string                                      |
+| `proposal`       | [ChangeProposal](ChangeProposal.md)         |
+| `target`         | [ChangeTarget](ChangeTarget.md)             |
+| `diff`           | [Array&lt;ChangeDiff&gt;](ChangeDiff.md)    |
+| `evidence`       | [ChangeEvidence](ChangeEvidence.md)         |
+| `permissions`    | [ChangePermissions](ChangePermissions.md)   |
 
 ## Example
 
@@ -30,6 +37,13 @@ const example = {
   adminUnitId: null,
   source: null,
   createdAt: null,
+  decidedAt: null,
+  decisionReason: null,
+  proposal: null,
+  target: null,
+  diff: null,
+  evidence: null,
+  permissions: null,
 } satisfies ChangeRequest;
 
 console.log(example);

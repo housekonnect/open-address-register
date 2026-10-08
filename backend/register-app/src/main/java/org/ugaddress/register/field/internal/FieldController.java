@@ -3,7 +3,12 @@ package org.ugaddress.register.field.internal;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,13 +19,15 @@ import org.ugaddress.api.v1.model.FieldCaptureMetadata;
 import org.ugaddress.register.field.FieldCaptureDTO;
 import org.ugaddress.register.field.FieldCaptureService;
 import org.ugaddress.register.field.NewFieldCaptureDTO;
+import org.ugaddress.register.field.PhotoDTO;
 import org.ugaddress.register.shared.CurrentActorService;
 import org.ugaddress.register.shared.GeoJson;
 import org.ugaddress.register.shared.ProblemException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * {@code POST /v1/field/captures} and field assignments (not implemented yet).
+ * {@code POST /v1/field/captures}, the evidence photo of a change request, and field assignments (not implemented
+ * yet).
  */
 @RestController
 class FieldController implements FieldApi {
@@ -57,6 +64,15 @@ class FieldController implements FieldApi {
             capture, actors.current());
         return ResponseEntity.created(URI.create("/v1/change-requests/" + result.changeRequestId()))
             .body(new FieldCapture(result.id(), result.changeRequestId(), result.photoStored(), result.receivedAt()));
+    }
+
+    @Override
+    public ResponseEntity<Resource> getChangeRequestPhoto(final UUID id) {
+        final PhotoDTO photo = captures.evidencePhoto(id, actors.current());
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(photo.contentType()))
+            .cacheControl(CacheControl.noStore().cachePrivate())
+            .body(new ByteArrayResource(photo.content()));
     }
 
     @Override

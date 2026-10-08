@@ -1,19 +1,24 @@
-# ChangeRequestState
-
-`returned`: sent back to the proposer with a written reason.
+# ChangeDiff
 
 ## Properties
 
-| Name | Type |
-| ---- | ---- |
+| Name       | Type   |
+| ---------- | ------ |
+| `field`    | string |
+| `current`  | string |
+| `proposed` | string |
 
 ## Example
 
 ```typescript
-import type { ChangeRequestState } from "";
+import type { ChangeDiff } from "";
 
 // TODO: Update the object below with actual values
-const example = {} satisfies ChangeRequestState;
+const example = {
+  field: null,
+  current: null,
+  proposed: null,
+} satisfies ChangeDiff;
 
 console.log(example);
 
@@ -22,7 +27,7 @@ const exampleJSON: string = JSON.stringify(example);
 console.log(exampleJSON);
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as ChangeRequestState;
+const exampleParsed = JSON.parse(exampleJSON) as ChangeDiff;
 console.log(exampleParsed);
 ```
 
