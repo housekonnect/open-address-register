@@ -26,7 +26,7 @@ Every addressable object (building, entrance, access point, landmark, facility) 
 
 ## Decision Outcome
 
-Chosen option (draft): **10 random digits followed by 1 Damm check digit (11 digits)**, displayed in groups of 4-3-4, e.g. `4821 093 7615`.
+Chosen option (draft): **10 random digits followed by 1 Damm check digit (11 digits)**, displayed in groups of 4-3-4, e.g. `4821 093 7618` (payload `4821093761`, Damm check digit `8`).
 
 - Damm detects all single-digit errors and all adjacent transpositions with a simple table lookup; Luhn misses some transpositions (09↔90) and Verhoeff is more complex.
 - Parsing accepts spaces and dashes.

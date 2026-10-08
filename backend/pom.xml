@@ -21,6 +21,7 @@
     </licenses>
 
     <modules>
+        <module>national-id</module>
     </modules>
 
     <properties>
