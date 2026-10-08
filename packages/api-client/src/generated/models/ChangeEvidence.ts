@@ -36,6 +36,10 @@ export interface ChangeEvidence {
    */
   photoSha256?: string | null;
   /**
+   * The capture's location came from a mock location provider on the device; check it.
+   */
+  locationMocked?: boolean;
+  /**
    *
    */
   location?: Point;
@@ -70,6 +74,8 @@ export function ChangeEvidenceFromJSONTyped(
         : json["photoSha256"] === null
           ? null
           : json["photoSha256"],
+    locationMocked:
+      json["locationMocked"] == null ? undefined : json["locationMocked"],
     location:
       json["location"] == null ? undefined : PointFromJSON(json["location"]),
   };
@@ -90,6 +96,7 @@ export function ChangeEvidenceToJSONTyped(
   return {
     photo: value["photo"],
     photoSha256: value["photoSha256"],
+    locationMocked: value["locationMocked"],
     location: PointToJSON(value["location"]),
   };
 }

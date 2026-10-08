@@ -68,6 +68,12 @@ export interface FieldCaptureMetadata {
    * SHA-256 of the photo bytes, lower-case hex, computed on the device when the photo was taken.
    */
   photoSha256: string;
+  /**
+   * The device reported the location as coming from a mock location provider (Android's mocked-location
+   * flag). Such captures are accepted and flagged for the approver, never blocked.
+   *
+   */
+  locationMocked?: boolean;
 }
 
 /**
@@ -122,6 +128,8 @@ export function FieldCaptureMetadataFromJSONTyped(
           ? null
           : json["note"],
     photoSha256: json["photoSha256"],
+    locationMocked:
+      json["locationMocked"] == null ? undefined : json["locationMocked"],
   };
 }
 
@@ -148,5 +156,6 @@ export function FieldCaptureMetadataToJSONTyped(
     targetObjectId: value["targetObjectId"],
     note: value["note"],
     photoSha256: value["photoSha256"],
+    locationMocked: value["locationMocked"],
   };
 }

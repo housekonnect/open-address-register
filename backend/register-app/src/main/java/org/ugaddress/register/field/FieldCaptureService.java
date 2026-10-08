@@ -99,10 +99,13 @@ public class FieldCaptureService {
         final String summary = summary(capture);
         final ChangeRequestDTO created = changeRequests.submit(new NewChangeRequestDTO(
             capture.targetObjectId() == null ? "new_object" : "correction", "field", capture.targetObjectId(), null,
-            summary, capture.location(), null, photoKey, storedSha256), actor);
+            summary, capture.location(), null, photoKey, storedSha256, capture.locationMocked()), actor);
         audit.record(new AuditEntryDTO(actor.subject(), created.custodianId(), "field.photo_stored", "change_request",
             created.id(), Map.of("contentType", capture.photoContentType(), "bytes", capture.photo().length,
-                "sha256", storedSha256)));
+                "sha256", storedSha256, "locationMocked", capture.locationMocked())));
+        if (capture.locationMocked()) {
+            LOG.info("Change request {} flagged: the device reported a mocked location", created.id());
+        }
         idempotency.complete(request, created.id(), HttpURLConnection.HTTP_CREATED);
         return toDto(created);
     }

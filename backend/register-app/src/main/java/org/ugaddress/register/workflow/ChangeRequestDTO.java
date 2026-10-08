@@ -26,6 +26,7 @@ import org.locationtech.jts.geom.Point;
  * @param decidedAt time of the decision
  * @param decisionReason written reason of a return
  * @param photoSha256 verified SHA-256 of the attached photo
+ * @param locationMocked whether the device reported the location as mocked
  */
 public record ChangeRequestDTO(UUID id, String kind, String state, String source, String summary,
                                @Nullable UUID targetObjectId, @Nullable UUID thoroughfareId, UUID adminUnitId,
@@ -33,5 +34,5 @@ public record ChangeRequestDTO(UUID id, String kind, String state, String source
                                @Nullable String photoObjectKey, OffsetDateTime createdAt,
                                @Nullable String proposedHouseNumber, @Nullable Point proposedLocation,
                                @Nullable OffsetDateTime decidedAt, @Nullable String decisionReason,
-                               @Nullable String photoSha256) {
+                               @Nullable String photoSha256, boolean locationMocked) {
 }

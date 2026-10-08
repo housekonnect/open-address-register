@@ -61,7 +61,7 @@ class ChangesController implements ChangesApi {
         final NewChangeRequestDTO draft = new NewChangeRequestDTO(body.getKind().getValue(), "console",
             body.getTargetObjectId(), body.getThoroughfareId(), body.getSummary(),
             body.getProposedLocation() == null ? null : GeoJson.fromApi(body.getProposedLocation()),
-            body.getProposedHouseNumber(), null, null);
+            body.getProposedHouseNumber(), null, null, false);
         final ChangeRequestDTO created = changeRequests.submitIdempotent(request, draft, actor);
         return ResponseEntity.created(URI.create("/v1/change-requests/" + created.id())).body(toApi(created));
     }
@@ -141,6 +141,7 @@ class ChangesController implements ChangesApi {
         }).toList());
         final ChangeEvidence evidence = new ChangeEvidence(dto.photoObjectKey() != null);
         evidence.setPhotoSha256(dto.photoSha256());
+        evidence.setLocationMocked(dto.locationMocked());
         if ("field".equals(dto.source())) {
             evidence.setLocation(GeoJson.toApi(dto.proposedLocation()));
         }

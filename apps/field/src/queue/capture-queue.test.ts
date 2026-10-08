@@ -30,6 +30,7 @@ const capture = (note: string): NewCapture => ({
   longitude: 32.5945,
   latitude: 0.3502,
   accuracyMeters: 4,
+  locationMocked: note === "mocked",
   kind: "building",
   note,
   photoUri: `file:///captures/${note}.jpg`,
@@ -68,6 +69,26 @@ describe("CaptureQueue", () => {
     expect(pending.map((c) => c.photoSha256)).toEqual(["a".repeat(64), "a".repeat(64)]);
     expect(pending[0]?.attempts).toBe(1);
     expect(pending[0]?.lastError).toBe("network");
+  });
+
+  it("keeps a capture with a mocked location like any other and uploads its flag", async () => {
+    // GIVEN a capture whose location the phone reported as mocked
+    const { queue } = newQueue();
+    const register = new FakeRegister();
+    register.online = true;
+    const uploaded: boolean[] = [];
+    const upload: Uploader = async (c) => {
+      uploaded.push(c.locationMocked);
+      return register.upload(c);
+    };
+
+    // WHEN it is queued and synced
+    await queue.enqueue(capture("mocked"));
+    const report = await queue.sync(upload);
+
+    // THEN it is uploaded, not blocked, with the flag set
+    expect(report.synced).toBe(1);
+    expect(uploaded).toEqual([true]);
   });
 
   it("uploads everything in order once back online", async () => {

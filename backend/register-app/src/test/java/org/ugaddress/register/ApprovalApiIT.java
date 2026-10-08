@@ -232,4 +232,41 @@ class ApprovalApiIT extends AbstractIntegrationTest {
         mvc.perform(get("/v1/change-requests/{id}/photo", id).with(user("verifier-e", "demo-city", Role.FIELD_VERIFIER)))
             .andExpect(status().isForbidden());
     }
+
+    @Test
+    void aCaptureWithAMockedLocationIsAcceptedAndFlaggedForTheApprover() throws Exception {
+        // GIVEN a capture whose location the device reported as mocked (Android's mocked-location flag)
+        final byte[] photo = TestPhotos.jpeg(61);
+        final MockMultipartFile metadata = new MockMultipartFile("metadata", "", "application/json", """
+            {"capturedAt": "2026-10-08T12:00:00Z", "kind": "building", "locationMocked": true,
+             "location": {"type": "Point", "coordinates": [32.5952, 0.3505]}, "photoSha256": "%s"}"""
+            .formatted(TestPhotos.sha256(photo)).getBytes());
+
+        // WHEN it is uploaded
+        final JsonNode capture = json.readTree(mvc.perform(multipart("/v1/field/captures").file(metadata)
+                .file(new MockMultipartFile("photo", "p.jpg", "image/jpeg", photo))
+                .header("Idempotency-Key", "mocked-0001").with(user("verifier-g", "demo-city", Role.FIELD_VERIFIER)))
+            // THEN it is accepted, not blocked
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        final String id = capture.get("changeRequestId").asString();
+
+        // AND the change request is flagged, for the approver and in the audit event
+        mvc.perform(get("/v1/change-requests/{id}", id).with(approver("approver-g")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.evidence.locationMocked").value(true));
+        assertThat(dsl.fetchSingle("""
+                select payload->>'locationMocked' from register.audit_event
+                 where entity_id = ?::uuid and action = 'field.photo_stored'""", id).get(0, String.class))
+            .isEqualTo("true");
+    }
+
+    @Test
+    void capturesWithoutTheFlagAreNotMarkedMocked() throws Exception {
+        // GIVEN a console correction (no device location at all)
+        final UUID id = propose(user("editor-h", "demo-city", Role.CUSTODIAN_EDITOR), 9, "9F");
+        // WHEN an approver opens it THEN it is not flagged
+        mvc.perform(get("/v1/change-requests/{id}", id).with(approver("approver-h")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.evidence.locationMocked").value(false));
+    }
 }

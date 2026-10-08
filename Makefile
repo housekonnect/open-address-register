@@ -7,7 +7,7 @@ COMPOSE := docker compose --env-file .env -f infra/compose/docker-compose.yml
 MVNW    := cd backend && ./mvnw -B
 
 .DEFAULT_GOAL := help
-.PHONY: help env install generate check-generated build test lint e2e basemap up down logs db-reset
+.PHONY: help env install generate check-generated build test lint e2e field-apk basemap up down logs db-reset
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -34,6 +34,11 @@ test: install ## Run all tests (backend with Testcontainers, web, field)
 
 e2e: ## Run the Playwright end-to-end tests of portal and console against the running stack (make up)
 	@set -a && . ./.env && set +a && pnpm --filter @ugaddress/portal --filter @ugaddress/console run e2e
+
+field-apk: install ## Build the field app's Android development build (needs the Android SDK and JDK 17)
+	cd apps/field && CI=1 pnpm exec expo prebuild --platform android --no-install
+	cd apps/field/android && ./gradlew assembleDebug
+	@echo "APK: apps/field/android/app/build/outputs/apk/debug/app-debug.apk"
 
 lint: install ## Lint contracts, TypeScript and type-check everything
 	pnpm contracts:lint

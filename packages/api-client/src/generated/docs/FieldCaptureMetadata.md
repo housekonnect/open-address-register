@@ -11,6 +11,7 @@
 | `targetObjectId` | string                      |
 | `note`           | string                      |
 | `photoSha256`    | string                      |
+| `locationMocked` | boolean                     |
 
 ## Example
 
@@ -26,6 +27,7 @@ const example = {
   targetObjectId: null,
   note: null,
   photoSha256: null,
+  locationMocked: null,
 } satisfies FieldCaptureMetadata;
 
 console.log(example);

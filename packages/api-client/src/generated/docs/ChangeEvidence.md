@@ -2,11 +2,12 @@
 
 ## Properties
 
-| Name          | Type              |
-| ------------- | ----------------- |
-| `photo`       | boolean           |
-| `photoSha256` | string            |
-| `location`    | [Point](Point.md) |
+| Name             | Type              |
+| ---------------- | ----------------- |
+| `photo`          | boolean           |
+| `photoSha256`    | string            |
+| `locationMocked` | boolean           |
+| `location`       | [Point](Point.md) |
 
 ## Example
 
@@ -17,6 +18,7 @@ import type { ChangeEvidence } from "";
 const example = {
   photo: null,
   photoSha256: null,
+  locationMocked: null,
   location: null,
 } satisfies ChangeEvidence;
 

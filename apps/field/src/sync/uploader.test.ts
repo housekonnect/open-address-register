@@ -8,6 +8,7 @@ const capture: QueuedCapture = {
   longitude: 32.5945,
   latitude: 0.3502,
   accuracyMeters: 4,
+  locationMocked: false,
   kind: "building",
   note: "No plate yet",
   photoUri: "file:///captures/1.jpg",
@@ -29,6 +30,7 @@ function uploaderWith(response: Response | Error, token: string | null = "token-
     apiUrl: "http://api.test/",
     getAccessToken: async () => token ?? undefined,
     writeMetadataFile: async () => "file:///cache/metadata.json",
+    filePart: (uri: string, name: string, type: string) => ({ uri, name, type }) as unknown as Blob,
     fetchImpl,
   });
   return { upload, requests };
@@ -51,6 +53,28 @@ describe("createUploader", () => {
     expect(requests[0]?.url).toBe("http://api.test/v1/field/captures");
     expect(headers["Idempotency-Key"]).toBe("abcdef0123456789");
     expect(headers.Authorization).toBe("Bearer token-1");
+  });
+
+  it("sends metadata and photo as file parts with their content types", async () => {
+    // GIVEN an uploader that records the parts it builds
+    const parts: [string, string, string][] = [];
+    const upload = createUploader({
+      apiUrl: "http://api.test",
+      getAccessToken: async () => "token-1",
+      writeMetadataFile: async () => "file:///cache/metadata.json",
+      filePart: (uri, name, type) => {
+        parts.push([uri, name, type]);
+        return new Blob([]);
+      },
+      fetchImpl: (async () => json(201, { id: "cr-1", changeRequestId: "cr-1", photoStored: true })) as unknown as typeof fetch,
+    });
+    // WHEN a capture is uploaded
+    await upload(capture);
+    // THEN the metadata is JSON and the photo a JPEG, both read from local files
+    expect(parts).toEqual([
+      ["file:///cache/metadata.json", "metadata.json", "application/json"],
+      ["file:///captures/1.jpg", `${capture.id}.jpg`, "image/jpeg"],
+    ]);
   });
 
   it("maps failures to retry decisions", async () => {
@@ -83,6 +107,8 @@ describe("createUploader", () => {
       location: { type: "Point", coordinates: [32.5945, 0.3502] },
       note: "No plate yet",
       photoSha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      locationMocked: false,
     });
+    expect(captureMetadata({ ...capture, locationMocked: true }).locationMocked).toBe(true);
   });
 });

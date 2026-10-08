@@ -16,9 +16,11 @@ import org.locationtech.jts.geom.Point;
  * @param photo photo bytes
  * @param photoContentType {@code image/jpeg} or {@code image/png}
  * @param photoSha256 SHA-256 of the photo computed on the device, lower-case hex
+ * @param locationMocked whether the device reported the location as mocked (accepted and flagged)
  */
 public record NewFieldCaptureDTO(String kind, Point location, @Nullable UUID targetObjectId, @Nullable String note,
-                                 byte[] photo, String photoContentType, String photoSha256) {
+                                 byte[] photo, String photoContentType, String photoSha256,
+                                 boolean locationMocked) {
 
     /**
      * Creates the DTO.
@@ -30,6 +32,7 @@ public record NewFieldCaptureDTO(String kind, Point location, @Nullable UUID tar
      * @param photo photo
      * @param photoContentType content type
      * @param photoSha256 device-side SHA-256 of the photo
+     * @param locationMocked mocked-location flag
      */
     public NewFieldCaptureDTO {
         Objects.requireNonNull(kind, "kind");
@@ -49,13 +52,14 @@ public record NewFieldCaptureDTO(String kind, Point location, @Nullable UUID tar
         return other instanceof final NewFieldCaptureDTO that && kind.equals(that.kind)
             && location.equals(that.location) && Objects.equals(targetObjectId, that.targetObjectId)
             && Objects.equals(note, that.note) && Arrays.equals(photo, that.photo)
-            && photoContentType.equals(that.photoContentType) && photoSha256.equals(that.photoSha256);
+            && photoContentType.equals(that.photoContentType) && photoSha256.equals(that.photoSha256)
+            && locationMocked == that.locationMocked;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(kind, location, targetObjectId, note, Arrays.hashCode(photo), photoContentType,
-            photoSha256);
+            photoSha256, locationMocked);
     }
 
     @Override

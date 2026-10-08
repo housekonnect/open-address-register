@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChangeRequest } from "@ugaddress/api-client";
+import { Alert, AlertDescription, AlertTitle } from "@ugaddress/ui/components/alert";
 import { Badge } from "@ugaddress/ui/components/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ugaddress/ui/components/card";
 import { RegisterMap } from "@ugaddress/ui/components/register-map";
@@ -98,6 +99,12 @@ export function ChangeReview({ request, styleUrl }: { request: ChangeRequest; st
               />
             ) : (
               <p className="text-muted-foreground">{t("evidence.noPhoto")}</p>
+            )}
+            {request.evidence?.locationMocked && (
+              <Alert variant="destructive">
+                <AlertTitle>{t("evidence.mocked")}</AlertTitle>
+                <AlertDescription>{t("evidence.mockedDetail")}</AlertDescription>
+              </Alert>
             )}
             {request.evidence?.photoSha256 && (
               <p className="break-all">

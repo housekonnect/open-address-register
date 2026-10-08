@@ -33,7 +33,8 @@ async function keepPhoto(uri: string): Promise<KeptPhoto> {
   const directory = new Directory(Paths.document, "captures");
   if (!directory.exists) directory.create({ intermediates: true, idempotent: true });
   const target = new File(directory, `${Crypto.randomUUID()}.jpg`);
-  new File(uri).copy(target);
+  // copy() resolves when the file is on disk; hashing before that fails with ENOENT on Android.
+  await new File(uri).copy(target);
   const sha256 = await photoSha256(await target.bytes(), (data) =>
     Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, data),
   );
@@ -54,7 +55,12 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) return setMessage(t("capture.cameraDenied"));
     const result = await ImagePicker.launchCameraAsync({ quality: 0.6, exif: false });
-    if (!result.canceled && result.assets[0]) setPhoto(await keepPhoto(result.assets[0].uri));
+    if (result.canceled || !result.assets[0]) return;
+    try {
+      setPhoto(await keepPhoto(result.assets[0].uri));
+    } catch {
+      setMessage(t("capture.photoFailed"));
+    }
   }
 
   async function showMyLocation() {
@@ -68,11 +74,19 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
     if (!photo) return setMessage(t("capture.needPhoto"));
     const permission = await Location.requestForegroundPermissionsAsync();
     if (!permission.granted) return setMessage(t("capture.locationDenied"));
-    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    let position: Location.LocationObject;
+    try {
+      position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    } catch {
+      // No fix yet (indoors, GPS just switched on): keep the photo and note, let the verifier try again.
+      return setMessage(t("capture.locationUnavailable"));
+    }
     await queue.enqueue({
       longitude: position.coords.longitude,
       latitude: position.coords.latitude,
       accuracyMeters: position.coords.accuracy,
+      // Android only: true when a mock location app supplied the position. Flagged for the approver, not blocked.
+      locationMocked: position.mocked === true,
       kind,
       note: note.trim() === "" ? null : note.trim(),
       photoUri: photo.uri,
@@ -93,7 +107,7 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
       </View>
       <View style={styles.map} accessibilityLabel={t("map.label")}>
         <Map mapStyle={mapStyleUrl} style={StyleSheet.absoluteFill} attribution={false} logo={false}>
-          <Camera ref={camera} initialViewState={{ center: config.defaultCenter, zoom: 16 }} />
+          <Camera ref={camera} initialViewState={{ bounds: config.defaultBounds, padding: { top: 16, right: 16, bottom: 16, left: 16 } }} />
           <UserLocation />
         </Map>
         <Pressable accessibilityRole="button" style={styles.mapButton} onPress={() => void showMyLocation()}>
@@ -164,6 +178,7 @@ function QueueItem({ item, styles }: { item: QueuedCapture; styles: ReturnType<t
         {t(`queue.status.${item.status}`)}
         {item.lastError && item.status !== "synced" ? ` (${item.lastError})` : ""}
       </Text>
+      {item.locationMocked && <Text style={styles.muted}>{t("queue.locationMocked")}</Text>}
     </View>
   );
 }

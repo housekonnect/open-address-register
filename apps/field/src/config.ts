@@ -6,6 +6,9 @@ export const config = {
   mapStyleUrl: process.env.EXPO_PUBLIC_MAP_STYLE_URL ?? "http://localhost:3000/map/style.json",
   clientId: "ugaddress-field",
   scheme: "ugaddress",
-  /** Initial map centre: the streets of the synthetic demo area. "My location" moves the map to the device. */
-  defaultCenter: [32.589, 0.3466] as [number, number],
+  /**
+   * Initial map view `[west, south, east, north]`: the streets of the synthetic demo area, as in the console.
+   * "My location" moves the map to the device.
+   */
+  defaultBounds: [32.572, 0.342, 32.606, 0.351] as [number, number, number, number],
 };

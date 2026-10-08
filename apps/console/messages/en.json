@@ -97,7 +97,9 @@
       "photoAlt": "Photo taken at the capture",
       "noPhoto": "No photo attached.",
       "location": "Captured at",
-      "sha256": "SHA-256 (taken on the device, verified on upload)"
+      "sha256": "SHA-256 (taken on the device, verified on upload)",
+      "mocked": "Mocked location",
+      "mockedDetail": "The phone reported this location as coming from a mock location app. The capture was accepted; check the location against the photo before approving."
     },
     "decision": {
       "title": "Decision",

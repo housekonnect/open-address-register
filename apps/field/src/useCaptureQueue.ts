@@ -33,6 +33,7 @@ export function useCaptureQueue(getAccessToken: () => Promise<string | undefined
           file.write(json);
           return file.uri;
         },
+        filePart: (uri, name, type) => ({ name, type, bytes: () => new File(uri).bytes() }) as unknown as Blob,
       });
       setLastReport(await queue.current.sync(upload));
     } finally {

@@ -181,6 +181,8 @@ pnpm --filter @ugaddress/field ios           # or: android (see note below)
 
 6. Press **Sync now** again or retry the same upload: the idempotency key makes the server return the existing change request, and no duplicate is created. The same guarantee is covered by automated tests (`RegisterApiIT.fieldCaptureStoresThePhotoAndRetriesDoNotDuplicate` and the field app's queue tests).
 
+Testing on a real (low-end) Android phone, including how to install the APK built with `make field-apk`: [docs/testing/android-device.md](docs/testing/android-device.md).
+
 On the Android emulator, keep `localhost` and forward the ports: `adb reverse tcp:3000 tcp:3000`, and the same for 3002, 8080 and 9000. On a physical phone, `localhost` is not the computer: set `OIDC_PUBLIC_URL`, `PORTAL_PUBLIC_URL` and `TILES_PUBLIC_URL` in the root `.env` and the URLs in `apps/field/.env` to your computer's LAN IP, then `make down && make up`, so the token issuer matches what the backend accepts and the map style points the phone at reachable hosts.
 
 ## Everyday commands

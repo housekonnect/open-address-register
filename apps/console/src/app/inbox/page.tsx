@@ -64,6 +64,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                   <Badge variant="secondary">{t(`kind.${request.kind}`)}</Badge>
                   <Badge variant="outline">{t(`source.${request.source ?? "console"}`)}</Badge>
                   {request.evidence?.photo && <Badge variant="outline">{t("hasPhoto")}</Badge>}
+                  {request.evidence?.locationMocked && <Badge variant="destructive">{t("evidence.mocked")}</Badge>}
                   {request.permissions?.reason === "own_request" && <Badge>{t("ownRequest")}</Badge>}
                   <span>{format.dateTime(request.createdAt, { dateStyle: "medium", timeStyle: "short" })}</span>
                 </CardContent>

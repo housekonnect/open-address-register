@@ -1031,6 +1031,9 @@ components:
         photoSha256:
           type: [string, "null"]
           description: SHA-256 of the photo, computed on the device and verified against the stored object.
+        locationMocked:
+          type: boolean
+          description: The capture's location came from a mock location provider on the device; check it.
         location:
           $ref: "#/components/schemas/Point"
 
@@ -1147,6 +1150,12 @@ components:
           type: string
           pattern: "^[0-9a-f]{64}$"
           description: SHA-256 of the photo bytes, lower-case hex, computed on the device when the photo was taken.
+        locationMocked:
+          type: boolean
+          default: false
+          description: |
+            The device reported the location as coming from a mock location provider (Android's mocked-location
+            flag). Such captures are accepted and flagged for the approver, never blocked.
 
     FieldCaptureUpload:
       type: object

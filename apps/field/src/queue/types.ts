@@ -12,6 +12,8 @@ export interface QueuedCapture {
   longitude: number;
   latitude: number;
   accuracyMeters: number | null;
+  /** Android reported the location as coming from a mock location provider. Sent along, never blocked. */
+  locationMocked: boolean;
   kind: CaptureKind;
   note: string | null;
   /** Local file URI of the photo, inside the app's document directory. */
@@ -26,7 +28,7 @@ export interface QueuedCapture {
 
 export type NewCapture = Pick<
   QueuedCapture,
-  "longitude" | "latitude" | "accuracyMeters" | "kind" | "note" | "photoUri" | "photoSha256"
+  "longitude" | "latitude" | "accuracyMeters" | "locationMocked" | "kind" | "note" | "photoUri" | "photoSha256"
 >;
 
 /** Persistence of the queue. Implemented with expo-sqlite on devices and in memory in tests. */
