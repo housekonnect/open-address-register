@@ -1,5 +1,6 @@
 package org.ugaddress.register.shared.internal;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -7,6 +8,7 @@ import java.util.function.Function;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,7 +38,7 @@ class SecurityConfig {
     SecurityFilterChain apiSecurity(final HttpSecurity http, final ProblemSecurityHandlers problems,
                                     final Converter<Jwt, AbstractAuthenticationToken> jwtConverter) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
+            .csrf(csrf -> csrf.ignoringRequestMatchers(SecurityConfig::cannotCarryAmbientCredentials))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(requests -> requests
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
@@ -52,6 +54,17 @@ class SecurityConfig {
                 .authenticationEntryPoint(problems)
                 .accessDeniedHandler(problems));
         return http.build();
+    }
+
+    /**
+     * CSRF abuses credentials the browser attaches on its own (cookies). The API authenticates only with bearer
+     * tokens, which browsers never attach cross-site, so requests with a bearer token or without any cookie skip the
+     * CSRF check. A request carrying cookies but no bearer token is still checked.
+     */
+    static boolean cannotCarryAmbientCredentials(final HttpServletRequest request) {
+        final String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+        final boolean bearer = authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7);
+        return bearer || request.getHeader(HttpHeaders.COOKIE) == null;
     }
 
     @Bean

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import jakarta.servlet.http.Cookie;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -192,6 +193,12 @@ class RegisterApiIT extends AbstractIntegrationTest {
         mvc.perform(post("/v1/change-requests").header("Idempotency-Key", "anon-key-0001")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isUnauthorized())
+            .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON));
+        // WHEN the request carries a cookie (ambient credential) but no bearer token THEN CSRF protection rejects it
+        mvc.perform(post("/v1/change-requests").header("Idempotency-Key", "cookie-key-0001")
+                .cookie(new Cookie("session", "abc"))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isForbidden())
             .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON));
         // WHEN a field verifier sends one THEN 403
         mvc.perform(post("/v1/change-requests").header("Idempotency-Key", "verifier-key-0001")
