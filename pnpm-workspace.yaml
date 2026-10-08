@@ -9,3 +9,6 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - '@redocly/cli@2.60.0'
   - lucide-react@1.53.0
+overrides:
+  # Security: transitive dependency of the React Native tooling (CVE-2026-102422).
+  shell-quote: 1.12.0
