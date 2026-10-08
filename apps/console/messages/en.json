@@ -1,7 +1,11 @@
 {
   "app": {
     "name": "Address Register Console",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "nav": {
+      "map": "Map",
+      "inbox": "Inbox"
+    }
   },
   "home": {
     "title": "Custodian console",
@@ -40,6 +44,88 @@
       "houseNumber": "House numbers are digits with an optional letter, e.g. 12 or 12A.",
       "key": "Please try again.",
       "failed": "The register could not be reached. Please try again."
+    }
+  },
+  "inbox": {
+    "title": "Inbox",
+    "intro": "Change requests in your jurisdiction waiting for a decision, oldest first. Nobody can approve their own request.",
+    "approversOnly": "The inbox is for custodian approvers.",
+    "empty": "Nothing is waiting for a decision.",
+    "unavailable": "The register could not be reached. Please try again.",
+    "forbidden": "This change request is outside your jurisdiction, or your role does not allow you to see it.",
+    "more": "More",
+    "back": "Back to the inbox",
+    "hasPhoto": "Photo",
+    "ownRequest": "Your request",
+    "proposedAt": "Proposed {at}",
+    "mapLabel": "Map preview of the change",
+    "markerLegend": "The dot marks the captured or proposed location; the highlighted building is the one the change refers to.",
+    "noLocation": "This change has no location to show on a map.",
+    "summary": "What should change",
+    "kind": {
+      "correction": "Correction",
+      "new_object": "New object",
+      "retirement": "Retirement"
+    },
+    "source": {
+      "console": "Console",
+      "field": "Field capture"
+    },
+    "state": {
+      "submitted": "Submitted",
+      "in_review": "In review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "returned": "Returned",
+      "applied": "Applied",
+      "withdrawn": "Withdrawn"
+    },
+    "diff": {
+      "title": "Changes",
+      "field": "Field",
+      "current": "Now",
+      "proposed": "Proposed",
+      "none": "—",
+      "empty": "No field values change; see the description and the evidence.",
+      "fields": {
+        "houseNumber": "House number",
+        "location": "Location"
+      }
+    },
+    "evidence": {
+      "title": "Evidence",
+      "photoAlt": "Photo taken at the capture",
+      "noPhoto": "No photo attached.",
+      "location": "Captured at",
+      "sha256": "SHA-256 (taken on the device, verified on upload)",
+      "mocked": "Mocked location",
+      "mockedDetail": "The phone reported this location as coming from a mock location app. The capture was accepted; check the location against the photo before approving."
+    },
+    "decision": {
+      "title": "Decision",
+      "returnedWith": "Returned: {reason}",
+      "approve": "Approve",
+      "return": "Return to proposer",
+      "reason": "Reason for returning",
+      "reasonPlaceholder": "e.g. The photo does not show the plate. Please retake it.",
+      "noPersonalData": "Write what needs to change. Do not include names, phone numbers or ID numbers of residents.",
+      "blockedTitle": "You cannot decide this request",
+      "blocked": {
+        "own_request": "You proposed this change. Under the four-eyes rule another approver must decide it.",
+        "not_approver": "Only custodian approvers can decide change requests.",
+        "outside_jurisdiction": "This change is outside your jurisdiction.",
+        "already_decided": "This change request has already been decided."
+      },
+      "decidedTitle": "Decision recorded",
+      "decided": "New status: {state}.",
+      "errorTitle": "Not recorded",
+      "error": {
+        "unauthorized": "Your session has expired. Please sign in again.",
+        "forbidden": "You may not decide this request (four-eyes rule or jurisdiction).",
+        "conflict": "Someone has already decided this request.",
+        "reason": "Please write a reason of 3 to 500 characters.",
+        "failed": "The register could not be reached. Please try again."
+      }
     }
   }
 }

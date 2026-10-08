@@ -49,6 +49,13 @@ export interface CreateFieldCaptureRequest {
   photo: Blob;
 }
 
+export interface GetChangeRequestPhotoRequest {
+  /**
+   *
+   */
+  id: string;
+}
+
 export interface ListFieldAssignmentsRequest {
   /**
    * Opaque cursor from a previous page's `nextCursor`.
@@ -80,7 +87,7 @@ export interface FieldApiInterface {
   ): Promise<runtime.RequestOpts>;
 
   /**
-   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.  **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken and sends it as `metadata.photoSha256`. After storing the photo the server reads it back from object storage and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is `422`; otherwise the hash is kept with the evidence and in the audit event.
    * @summary Upload a field capture (point and photo)
    * @param {string} idempotencyKey Client-generated unique key (a UUID is recommended), reused unchanged on retries.
    * @param {FieldCaptureMetadata} metadata
@@ -95,13 +102,45 @@ export interface FieldApiInterface {
   ): Promise<runtime.ApiResponse<FieldCapture>>;
 
   /**
-   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.  **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken and sends it as `metadata.photoSha256`. After storing the photo the server reads it back from object storage and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is `422`; otherwise the hash is kept with the evidence and in the audit event.
    * Upload a field capture (point and photo)
    */
   createFieldCapture(
     requestParameters: CreateFieldCaptureRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<FieldCapture>;
+
+  /**
+   * Creates request options for getChangeRequestPhoto without sending the request
+   * @param {string} id
+   * @throws {RequiredError}
+   * @memberof FieldApiInterface
+   */
+  getChangeRequestPhotoRequestOpts(
+    requestParameters: GetChangeRequestPhotoRequest,
+  ): Promise<runtime.RequestOpts>;
+
+  /**
+   * Streams the photo attached to a field capture. Same access rule as the change request itself; clients never read the object store directly.
+   * @summary Evidence photo of a change request
+   * @param {string} id
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof FieldApiInterface
+   */
+  getChangeRequestPhotoRaw(
+    requestParameters: GetChangeRequestPhotoRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<runtime.HttpFile>>;
+
+  /**
+   * Streams the photo attached to a field capture. Same access rule as the change request itself; clients never read the object store directly.
+   * Evidence photo of a change request
+   */
+  getChangeRequestPhoto(
+    requestParameters: GetChangeRequestPhotoRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.HttpFile>;
 
   /**
    * Creates request options for listFieldAssignments without sending the request
@@ -232,7 +271,7 @@ export class FieldApi extends runtime.BaseAPI implements FieldApiInterface {
   }
 
   /**
-   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.  **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken and sends it as `metadata.photoSha256`. After storing the photo the server reads it back from object storage and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is `422`; otherwise the hash is kept with the evidence and in the audit event.
    * Upload a field capture (point and photo)
    */
   async createFieldCaptureRaw(
@@ -249,7 +288,7 @@ export class FieldApi extends runtime.BaseAPI implements FieldApiInterface {
   }
 
   /**
-   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+   * Stores the photo in object storage and creates a change request for the captured point. Requires the `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.  **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken and sends it as `metadata.photoSha256`. After storing the photo the server reads it back from object storage and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is `422`; otherwise the hash is kept with the evidence and in the audit event.
    * Upload a field capture (point and photo)
    */
   async createFieldCapture(
@@ -257,6 +296,76 @@ export class FieldApi extends runtime.BaseAPI implements FieldApiInterface {
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<FieldCapture> {
     const response = await this.createFieldCaptureRaw(
+      requestParameters,
+      initOverrides,
+    );
+    return await response.value();
+  }
+
+  /**
+   * Creates request options for getChangeRequestPhoto without sending the request
+   */
+  async getChangeRequestPhotoRequestOpts(
+    requestParameters: GetChangeRequestPhotoRequest,
+  ): Promise<runtime.RequestOpts> {
+    if (requestParameters["id"] == null) {
+      throw new runtime.RequiredError(
+        "id",
+        'Required parameter "id" was null or undefined when calling getChangeRequestPhoto().',
+      );
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token("bearerAuth", []);
+
+      if (tokenString) {
+        headerParameters["Authorization"] = `Bearer ${tokenString}`;
+      }
+    }
+
+    let urlPath = `/v1/change-requests/{id}/photo`;
+    urlPath = urlPath.replace(
+      "{id}",
+      encodeURIComponent(String(requestParameters["id"])),
+    );
+
+    return {
+      path: urlPath,
+      method: "GET",
+      headers: headerParameters,
+      query: queryParameters,
+    };
+  }
+
+  /**
+   * Streams the photo attached to a field capture. Same access rule as the change request itself; clients never read the object store directly.
+   * Evidence photo of a change request
+   */
+  async getChangeRequestPhotoRaw(
+    requestParameters: GetChangeRequestPhotoRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<runtime.HttpFile>> {
+    const requestOptions =
+      await this.getChangeRequestPhotoRequestOpts(requestParameters);
+    const response = await this.request(requestOptions, initOverrides);
+
+    return new runtime.BlobApiResponse(response);
+  }
+
+  /**
+   * Streams the photo attached to a field capture. Same access rule as the change request itself; clients never read the object store directly.
+   * Evidence photo of a change request
+   */
+  async getChangeRequestPhoto(
+    requestParameters: GetChangeRequestPhotoRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.HttpFile> {
+    const response = await this.getChangeRequestPhotoRaw(
       requestParameters,
       initOverrides,
     );

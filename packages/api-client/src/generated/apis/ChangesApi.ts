@@ -29,10 +29,36 @@ import {
   ChangeRequestCreateToJSON,
 } from "../models/ChangeRequestCreate";
 import {
+  type ChangeRequestPage,
+  ChangeRequestPageFromJSON,
+  ChangeRequestPageToJSON,
+} from "../models/ChangeRequestPage";
+import {
+  type ChangeRequestReturn,
+  ChangeRequestReturnFromJSON,
+  ChangeRequestReturnToJSON,
+} from "../models/ChangeRequestReturn";
+import {
+  type ChangeRequestState,
+  ChangeRequestStateFromJSON,
+  ChangeRequestStateToJSON,
+} from "../models/ChangeRequestState";
+import {
   type Problem,
   ProblemFromJSON,
   ProblemToJSON,
 } from "../models/Problem";
+
+export interface ApproveChangeRequestRequest {
+  /**
+   *
+   */
+  id: string;
+  /**
+   * Client-generated unique key (a UUID is recommended), reused unchanged on retries.
+   */
+  idempotencyKey: string;
+}
 
 export interface CreateChangeRequestRequest {
   /**
@@ -43,6 +69,32 @@ export interface CreateChangeRequestRequest {
    *
    */
   changeRequestCreate: ChangeRequestCreate;
+}
+
+export interface GetChangeRequestRequest {
+  /**
+   *
+   */
+  id: string;
+  /**
+   *
+   */
+  ifNoneMatch?: string;
+}
+
+export interface ListChangeRequestsRequest {
+  /**
+   *
+   */
+  state?: ChangeRequestState;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`.
+   */
+  cursor?: string;
+  /**
+   *
+   */
+  limit?: number;
 }
 
 export interface ListChangesRequest {
@@ -60,6 +112,21 @@ export interface ListChangesRequest {
   limit?: number;
 }
 
+export interface ReturnChangeRequestRequest {
+  /**
+   *
+   */
+  id: string;
+  /**
+   * Client-generated unique key (a UUID is recommended), reused unchanged on retries.
+   */
+  idempotencyKey: string;
+  /**
+   *
+   */
+  changeRequestReturn: ChangeRequestReturn;
+}
+
 /**
  * ChangesApi - interface
  *
@@ -67,6 +134,40 @@ export interface ListChangesRequest {
  * @interface ChangesApiInterface
  */
 export interface ChangesApiInterface {
+  /**
+   * Creates request options for approveChangeRequest without sending the request
+   * @param {string} id
+   * @param {string} idempotencyKey Client-generated unique key (a UUID is recommended), reused unchanged on retries.
+   * @throws {RequiredError}
+   * @memberof ChangesApiInterface
+   */
+  approveChangeRequestRequestOpts(
+    requestParameters: ApproveChangeRequestRequest,
+  ): Promise<runtime.RequestOpts>;
+
+  /**
+   * Requires the `custodian-approver` role and the change request\'s jurisdiction. The proposer can never approve their own request: that answers `403`. Writes an audit event.
+   * @summary Approve a change request (four-eyes rule)
+   * @param {string} id
+   * @param {string} idempotencyKey Client-generated unique key (a UUID is recommended), reused unchanged on retries.
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof ChangesApiInterface
+   */
+  approveChangeRequestRaw(
+    requestParameters: ApproveChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ChangeRequest>>;
+
+  /**
+   * Requires the `custodian-approver` role and the change request\'s jurisdiction. The proposer can never approve their own request: that answers `403`. Writes an audit event.
+   * Approve a change request (four-eyes rule)
+   */
+  approveChangeRequest(
+    requestParameters: ApproveChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ChangeRequest>;
+
   /**
    * Creates request options for createChangeRequest without sending the request
    * @param {string} idempotencyKey Client-generated unique key (a UUID is recommended), reused unchanged on retries.
@@ -102,6 +203,76 @@ export interface ChangesApiInterface {
   ): Promise<ChangeRequest>;
 
   /**
+   * Creates request options for getChangeRequest without sending the request
+   * @param {string} id
+   * @param {string} [ifNoneMatch]
+   * @throws {RequiredError}
+   * @memberof ChangesApiInterface
+   */
+  getChangeRequestRequestOpts(
+    requestParameters: GetChangeRequestRequest,
+  ): Promise<runtime.RequestOpts>;
+
+  /**
+   * Requires the `custodian-approver` role; the change request must lie in the caller\'s jurisdiction.
+   * @summary One change request with its diff and evidence
+   * @param {string} id
+   * @param {string} [ifNoneMatch]
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof ChangesApiInterface
+   */
+  getChangeRequestRaw(
+    requestParameters: GetChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ChangeRequest>>;
+
+  /**
+   * Requires the `custodian-approver` role; the change request must lie in the caller\'s jurisdiction.
+   * One change request with its diff and evidence
+   */
+  getChangeRequest(
+    requestParameters: GetChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ChangeRequest>;
+
+  /**
+   * Creates request options for listChangeRequests without sending the request
+   * @param {ChangeRequestState} [state]
+   * @param {string} [cursor] Opaque cursor from a previous page\&#39;s &#x60;nextCursor&#x60;.
+   * @param {number} [limit]
+   * @throws {RequiredError}
+   * @memberof ChangesApiInterface
+   */
+  listChangeRequestsRequestOpts(
+    requestParameters: ListChangeRequestsRequest,
+  ): Promise<runtime.RequestOpts>;
+
+  /**
+   * Change requests inside the caller\'s jurisdiction, oldest first. Requires the `custodian-approver` role. Each item carries `permissions`, so a client can tell whether the caller may decide it (four-eyes rule).
+   * @summary Approver inbox
+   * @param {ChangeRequestState} [state]
+   * @param {string} [cursor] Opaque cursor from a previous page\&#39;s &#x60;nextCursor&#x60;.
+   * @param {number} [limit]
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof ChangesApiInterface
+   */
+  listChangeRequestsRaw(
+    requestParameters: ListChangeRequestsRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ChangeRequestPage>>;
+
+  /**
+   * Change requests inside the caller\'s jurisdiction, oldest first. Requires the `custodian-approver` role. Each item carries `permissions`, so a client can tell whether the caller may decide it (four-eyes rule).
+   * Approver inbox
+   */
+  listChangeRequests(
+    requestParameters: ListChangeRequestsRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ChangeRequestPage>;
+
+  /**
    * Creates request options for listChanges without sending the request
    * @param {Date} since
    * @param {string} [cursor] Opaque cursor from a previous page\&#39;s &#x60;nextCursor&#x60;.
@@ -135,12 +306,133 @@ export interface ChangesApiInterface {
     requestParameters: ListChangesRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<ChangePage>;
+
+  /**
+   * Creates request options for returnChangeRequest without sending the request
+   * @param {string} id
+   * @param {string} idempotencyKey Client-generated unique key (a UUID is recommended), reused unchanged on retries.
+   * @param {ChangeRequestReturn} changeRequestReturn
+   * @throws {RequiredError}
+   * @memberof ChangesApiInterface
+   */
+  returnChangeRequestRequestOpts(
+    requestParameters: ReturnChangeRequestRequest,
+  ): Promise<runtime.RequestOpts>;
+
+  /**
+   * Same rules as approving. The reason is shown to the proposer; it must not contain personal data. Writes an audit event.
+   * @summary Return a change request to its proposer with a written reason (four-eyes rule)
+   * @param {string} id
+   * @param {string} idempotencyKey Client-generated unique key (a UUID is recommended), reused unchanged on retries.
+   * @param {ChangeRequestReturn} changeRequestReturn
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof ChangesApiInterface
+   */
+  returnChangeRequestRaw(
+    requestParameters: ReturnChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ChangeRequest>>;
+
+  /**
+   * Same rules as approving. The reason is shown to the proposer; it must not contain personal data. Writes an audit event.
+   * Return a change request to its proposer with a written reason (four-eyes rule)
+   */
+  returnChangeRequest(
+    requestParameters: ReturnChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ChangeRequest>;
 }
 
 /**
  *
  */
 export class ChangesApi extends runtime.BaseAPI implements ChangesApiInterface {
+  /**
+   * Creates request options for approveChangeRequest without sending the request
+   */
+  async approveChangeRequestRequestOpts(
+    requestParameters: ApproveChangeRequestRequest,
+  ): Promise<runtime.RequestOpts> {
+    if (requestParameters["id"] == null) {
+      throw new runtime.RequiredError(
+        "id",
+        'Required parameter "id" was null or undefined when calling approveChangeRequest().',
+      );
+    }
+
+    if (requestParameters["idempotencyKey"] == null) {
+      throw new runtime.RequiredError(
+        "idempotencyKey",
+        'Required parameter "idempotencyKey" was null or undefined when calling approveChangeRequest().',
+      );
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (requestParameters["idempotencyKey"] != null) {
+      headerParameters["Idempotency-Key"] = String(
+        requestParameters["idempotencyKey"],
+      );
+    }
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token("bearerAuth", []);
+
+      if (tokenString) {
+        headerParameters["Authorization"] = `Bearer ${tokenString}`;
+      }
+    }
+
+    let urlPath = `/v1/change-requests/{id}/approve`;
+    urlPath = urlPath.replace(
+      "{id}",
+      encodeURIComponent(String(requestParameters["id"])),
+    );
+
+    return {
+      path: urlPath,
+      method: "POST",
+      headers: headerParameters,
+      query: queryParameters,
+    };
+  }
+
+  /**
+   * Requires the `custodian-approver` role and the change request\'s jurisdiction. The proposer can never approve their own request: that answers `403`. Writes an audit event.
+   * Approve a change request (four-eyes rule)
+   */
+  async approveChangeRequestRaw(
+    requestParameters: ApproveChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ChangeRequest>> {
+    const requestOptions =
+      await this.approveChangeRequestRequestOpts(requestParameters);
+    const response = await this.request(requestOptions, initOverrides);
+
+    return new runtime.JSONApiResponse(response, (jsonValue) =>
+      ChangeRequestFromJSON(jsonValue),
+    );
+  }
+
+  /**
+   * Requires the `custodian-approver` role and the change request\'s jurisdiction. The proposer can never approve their own request: that answers `403`. Writes an audit event.
+   * Approve a change request (four-eyes rule)
+   */
+  async approveChangeRequest(
+    requestParameters: ApproveChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ChangeRequest> {
+    const response = await this.approveChangeRequestRaw(
+      requestParameters,
+      initOverrides,
+    );
+    return await response.value();
+  }
+
   /**
    * Creates request options for createChangeRequest without sending the request
    */
@@ -226,6 +518,157 @@ export class ChangesApi extends runtime.BaseAPI implements ChangesApiInterface {
   }
 
   /**
+   * Creates request options for getChangeRequest without sending the request
+   */
+  async getChangeRequestRequestOpts(
+    requestParameters: GetChangeRequestRequest,
+  ): Promise<runtime.RequestOpts> {
+    if (requestParameters["id"] == null) {
+      throw new runtime.RequiredError(
+        "id",
+        'Required parameter "id" was null or undefined when calling getChangeRequest().',
+      );
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (requestParameters["ifNoneMatch"] != null) {
+      headerParameters["If-None-Match"] = String(
+        requestParameters["ifNoneMatch"],
+      );
+    }
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token("bearerAuth", []);
+
+      if (tokenString) {
+        headerParameters["Authorization"] = `Bearer ${tokenString}`;
+      }
+    }
+
+    let urlPath = `/v1/change-requests/{id}`;
+    urlPath = urlPath.replace(
+      "{id}",
+      encodeURIComponent(String(requestParameters["id"])),
+    );
+
+    return {
+      path: urlPath,
+      method: "GET",
+      headers: headerParameters,
+      query: queryParameters,
+    };
+  }
+
+  /**
+   * Requires the `custodian-approver` role; the change request must lie in the caller\'s jurisdiction.
+   * One change request with its diff and evidence
+   */
+  async getChangeRequestRaw(
+    requestParameters: GetChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ChangeRequest>> {
+    const requestOptions =
+      await this.getChangeRequestRequestOpts(requestParameters);
+    const response = await this.request(requestOptions, initOverrides);
+
+    return new runtime.JSONApiResponse(response, (jsonValue) =>
+      ChangeRequestFromJSON(jsonValue),
+    );
+  }
+
+  /**
+   * Requires the `custodian-approver` role; the change request must lie in the caller\'s jurisdiction.
+   * One change request with its diff and evidence
+   */
+  async getChangeRequest(
+    requestParameters: GetChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ChangeRequest> {
+    const response = await this.getChangeRequestRaw(
+      requestParameters,
+      initOverrides,
+    );
+    return await response.value();
+  }
+
+  /**
+   * Creates request options for listChangeRequests without sending the request
+   */
+  async listChangeRequestsRequestOpts(
+    requestParameters: ListChangeRequestsRequest,
+  ): Promise<runtime.RequestOpts> {
+    const queryParameters: any = {};
+
+    if (requestParameters["state"] != null) {
+      queryParameters["state"] = requestParameters["state"];
+    }
+
+    if (requestParameters["cursor"] != null) {
+      queryParameters["cursor"] = requestParameters["cursor"];
+    }
+
+    if (requestParameters["limit"] != null) {
+      queryParameters["limit"] = requestParameters["limit"];
+    }
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token("bearerAuth", []);
+
+      if (tokenString) {
+        headerParameters["Authorization"] = `Bearer ${tokenString}`;
+      }
+    }
+
+    let urlPath = `/v1/change-requests`;
+
+    return {
+      path: urlPath,
+      method: "GET",
+      headers: headerParameters,
+      query: queryParameters,
+    };
+  }
+
+  /**
+   * Change requests inside the caller\'s jurisdiction, oldest first. Requires the `custodian-approver` role. Each item carries `permissions`, so a client can tell whether the caller may decide it (four-eyes rule).
+   * Approver inbox
+   */
+  async listChangeRequestsRaw(
+    requestParameters: ListChangeRequestsRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ChangeRequestPage>> {
+    const requestOptions =
+      await this.listChangeRequestsRequestOpts(requestParameters);
+    const response = await this.request(requestOptions, initOverrides);
+
+    return new runtime.JSONApiResponse(response, (jsonValue) =>
+      ChangeRequestPageFromJSON(jsonValue),
+    );
+  }
+
+  /**
+   * Change requests inside the caller\'s jurisdiction, oldest first. Requires the `custodian-approver` role. Each item carries `permissions`, so a client can tell whether the caller may decide it (four-eyes rule).
+   * Approver inbox
+   */
+  async listChangeRequests(
+    requestParameters: ListChangeRequestsRequest = {},
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ChangeRequestPage> {
+    const response = await this.listChangeRequestsRaw(
+      requestParameters,
+      initOverrides,
+    );
+    return await response.value();
+  }
+
+  /**
    * Creates request options for listChanges without sending the request
    */
   async listChangesRequestOpts(
@@ -298,6 +741,101 @@ export class ChangesApi extends runtime.BaseAPI implements ChangesApiInterface {
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<ChangePage> {
     const response = await this.listChangesRaw(
+      requestParameters,
+      initOverrides,
+    );
+    return await response.value();
+  }
+
+  /**
+   * Creates request options for returnChangeRequest without sending the request
+   */
+  async returnChangeRequestRequestOpts(
+    requestParameters: ReturnChangeRequestRequest,
+  ): Promise<runtime.RequestOpts> {
+    if (requestParameters["id"] == null) {
+      throw new runtime.RequiredError(
+        "id",
+        'Required parameter "id" was null or undefined when calling returnChangeRequest().',
+      );
+    }
+
+    if (requestParameters["idempotencyKey"] == null) {
+      throw new runtime.RequiredError(
+        "idempotencyKey",
+        'Required parameter "idempotencyKey" was null or undefined when calling returnChangeRequest().',
+      );
+    }
+
+    if (requestParameters["changeRequestReturn"] == null) {
+      throw new runtime.RequiredError(
+        "changeRequestReturn",
+        'Required parameter "changeRequestReturn" was null or undefined when calling returnChangeRequest().',
+      );
+    }
+
+    const queryParameters: any = {};
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    headerParameters["Content-Type"] = "application/json";
+
+    if (requestParameters["idempotencyKey"] != null) {
+      headerParameters["Idempotency-Key"] = String(
+        requestParameters["idempotencyKey"],
+      );
+    }
+
+    if (this.configuration && this.configuration.accessToken) {
+      const token = this.configuration.accessToken;
+      const tokenString = await token("bearerAuth", []);
+
+      if (tokenString) {
+        headerParameters["Authorization"] = `Bearer ${tokenString}`;
+      }
+    }
+
+    let urlPath = `/v1/change-requests/{id}/return`;
+    urlPath = urlPath.replace(
+      "{id}",
+      encodeURIComponent(String(requestParameters["id"])),
+    );
+
+    return {
+      path: urlPath,
+      method: "POST",
+      headers: headerParameters,
+      query: queryParameters,
+      body: ChangeRequestReturnToJSON(requestParameters["changeRequestReturn"]),
+    };
+  }
+
+  /**
+   * Same rules as approving. The reason is shown to the proposer; it must not contain personal data. Writes an audit event.
+   * Return a change request to its proposer with a written reason (four-eyes rule)
+   */
+  async returnChangeRequestRaw(
+    requestParameters: ReturnChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<ChangeRequest>> {
+    const requestOptions =
+      await this.returnChangeRequestRequestOpts(requestParameters);
+    const response = await this.request(requestOptions, initOverrides);
+
+    return new runtime.JSONApiResponse(response, (jsonValue) =>
+      ChangeRequestFromJSON(jsonValue),
+    );
+  }
+
+  /**
+   * Same rules as approving. The reason is shown to the proposer; it must not contain personal data. Writes an audit event.
+   * Return a change request to its proposer with a written reason (four-eyes rule)
+   */
+  async returnChangeRequest(
+    requestParameters: ReturnChangeRequestRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<ChangeRequest> {
+    const response = await this.returnChangeRequestRaw(
       requestParameters,
       initOverrides,
     );

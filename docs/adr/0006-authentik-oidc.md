@@ -29,6 +29,7 @@ Chosen option: **Authentik**, run with its official Compose setup.
 - The console and portal use the OIDC authorization code flow; the field app uses the code flow with PKCE (public client).
 - Configuration is declarative via Authentik blueprints: OIDC applications for console, portal and field app, the API audience, the groups `custodian-editor`, `custodian-approver`, `field-verifier` and `steward-admin`, and one synthetic test user per group.
 - Each user's custodian is an Authentik user attribute emitted as the `custodian` claim; the backend derives the jurisdiction from it.
+- Custodian editors, approvers and steward administrators must use a second factor (TOTP or WebAuthn), enforced by the blueprint's authentication flow `ugaddress-authentication` (default brand flow) through group-bound policy bindings. There is no switch to turn it off. Authenticator stages, policy bindings and the event log are part of authentik's MIT-licensed code; nothing used here is in `authentik/enterprise/`.
 
 ### Consequences
 

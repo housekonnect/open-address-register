@@ -15,6 +15,7 @@ An independent, open-source address register for Uganda, designed so the governm
 | Custodian console | [apps/console](apps/console) | Next.js, Authentik login (OIDC code flow) |
 | Field app | [apps/field](apps/field) | Expo / React Native, offline SQLite queue, PKCE |
 | Local environment | [infra/compose](infra/compose) | Docker Compose: PostGIS, Authentik, Record Store, Martin |
+| Basemap | [infra/basemap](infra/basemap) | `make basemap`: self-hosted Protomaps extract of OpenStreetMap, glyphs and sprites |
 
 Read [CLAUDE.md](CLAUDE.md) for conventions and [docs/adr](docs/adr) for the decisions behind them.
 
@@ -26,7 +27,7 @@ Requirements: **Docker**, **JDK 25** (`sdk env` picks it up from [.sdkmanrc](.sd
 make up
 ```
 
-`make up` creates `.env` with random local secrets (once), builds the backend jar (jOOQ code generation runs PostGIS in Testcontainers), builds the images and waits until every service is healthy. The first run downloads all images and takes several minutes; on Apple Silicon the PostGIS image runs under emulation.
+`make up` creates `.env` with random local secrets (once), runs `make basemap` (below), builds the backend jar (jOOQ code generation runs PostGIS in Testcontainers), builds the images and waits until every service is healthy. The first run downloads all images and takes several minutes; on Apple Silicon the PostGIS image runs under emulation.
 
 | Service | URL |
 |---|---|
@@ -38,6 +39,15 @@ make up
 | Record Store (S3 API) | http://localhost:7600 |
 
 `make down` stops everything and keeps the data; `make db-reset` recreates the register database with fresh fixtures.
+
+### Maps
+
+Every map (portal, console, field app) loads one style, served by the portal at http://localhost:3000/map/style.json: a self-hosted [Protomaps](https://protomaps.com) basemap built from OpenStreetMap, with the register's streets, buildings and public entrances on top. Nothing is fetched from outside the stack at runtime.
+
+- `make basemap` downloads a Uganda extract (about 630 MB, once) with the `pmtiles extract` CLI, plus the fonts and sprites from Protomaps' basemaps assets, verifies every file against the SHA-256 pinned in [infra/basemap/pins.env](infra/basemap/pins.env) and stores them in the Docker volume `ugaddress-basemap`. Martin serves the tiles; the portal serves fonts and sprites. The files are never committed.
+- `make basemap BASEMAP_AREA=demo` (and `make up BASEMAP_AREA=demo`) uses a 4 MB extract covering only the synthetic district, as CI does.
+- Maps show "© OpenStreetMap contributors" (ODbL).
+- `make e2e` runs the Playwright map tests of the portal and the console against the running stack. They wait for the map to finish rendering, check that basemap and register tiles returned 200 and that no request left the stack, and save a screenshot. The first time, install the browser with `pnpm --filter @ugaddress/portal exec playwright install chromium`, or set `PLAYWRIGHT_CHANNEL=chrome` to use an installed Chrome.
 
 > `.env` holds the secrets the data volumes were initialised with. Do not regenerate it while volumes exist; to start over completely, run `docker compose -f infra/compose/docker-compose.yml --env-file .env down -v` first, then delete `.env`.
 
@@ -52,11 +62,22 @@ grep TEST_USER_PASSWORD .env
 | Username | Group | Custodian | Can do |
 |---|---|---|---|
 | `editor` | custodian-editor | demo-city (Amani Parish) | submit corrections in the console |
-| `approver` | custodian-approver | demo-city | approve change requests (service level; no UI yet) |
+| `approver` | custodian-approver, custodian-editor | demo-city | decide change requests in the console inbox; also proposes, to show the four-eyes rule |
 | `verifier` | field-verifier | demo-city | log in to the field app and upload captures |
 | `steward` | steward-admin | demo-ministry (whole demo district) | — (reserved for administration) |
 
 The Authentik administrator is `akadmin`, password `AUTHENTIK_BOOTSTRAP_PASSWORD` in `.env`.
+
+#### Second factor (MFA)
+
+`editor`, `approver` and `steward` (groups `custodian-editor`, `custodian-approver`, `steward-admin`) must use a second factor. Their login runs through the flow `ugaddress-authentication`, defined in the same blueprint; there is no setting that turns this off. `verifier` signs in with the password only.
+
+On the first login after the password, authentik asks which second factor to set up:
+
+- **TOTP Device**: scan the QR code with any authenticator app (for example Aegis, FreeOTP or Google Authenticator), then type the six-digit code. Later logins ask for a current code.
+- **WebAuthn device**: a passkey or security key (YubiKey, Windows Hello, Touch ID, Android). Browsers allow WebAuthn on `http://localhost`; on any other host name authentik must be served over HTTPS.
+
+Lost the device, or want to start over? As `akadmin`, open http://localhost:9000/if/admin/ → **Directory → Users → (user) → MFA authenticators** and delete the device; the next login enrols a new one. The Playwright console tests do exactly this through authentik's API (with `AUTHENTIK_BOOTSTRAP_TOKEN`) and enrol a fresh TOTP device on every run.
 
 ## The end-to-end slice
 
@@ -93,13 +114,23 @@ regsql "select register.verify_audit_chain() is null as audit_chain_intact"
 
 Expected: 42 buildings, 8 facilities and 50 entrances, all `demonstration`; the audit chain is intact.
 
-### 3. Portal: resolve an ID
+### 3. Portal: search and resolve an ID
 
 1. Open http://localhost:3000 and type `9526 184 5754` (spaces, dashes or the `DEMO` prefix are all accepted). Change one digit to see the check digit catch the typo before any request is made.
-2. Press **Look up**. The address page shows the address lines, the `DEMO` ID, a MapLibre map of the register's own Martin tiles with the building highlighted, and a QR code that links back to the page.
+2. Press **Search**. A valid ID or reference opens its address page directly. It shows the address lines, the `DEMO` ID, a map of the address on the self-hosted OpenStreetMap basemap with the building highlighted, and a QR code that links back to the page.
 3. Residential entrance coordinates are not shown publicly; the API returns them only to callers with the `register:partner` scope.
 
-The same lookup through the API: `curl "http://localhost:8080/v1/resolve?ref=demo-plot:AMA-0001"`.
+4. Search for free text instead, e.g. `amani avnue` (typo included) or `Health Centre`: the results list streets, addresses and places, best match first.
+
+The same through the API:
+
+```sh
+curl "http://localhost:8080/v1/resolve?ref=demo-plot:AMA-0001"
+curl "http://localhost:8080/v1/search?q=jacarnda%20close"        # full-text + trigram, typo-tolerant, cursor-paginated
+curl "http://localhost:8080/v1/reverse?lat=0.3502&lon=32.5935"   # public: street level only
+```
+
+Reverse lookups return the nearest street (with postcode and admin units, distance rounded to 10 m) to the public, and the nearest addressed objects with their entrance coordinates to partners (`register:partner`).
 
 ### 4. Console: submit a correction
 
@@ -114,6 +145,18 @@ The same lookup through the API: `curl "http://localhost:8080/v1/resolve?ref=dem
    ```
 
 Submitting a building on Mirembe Road (another custodian's area) is refused: row-level security only lets a custodian write inside its jurisdiction.
+
+### 4b. Console: approve or return (four-eyes rule)
+
+1. Sign out, then **Sign in** as `approver` and open **Inbox**. It lists the submitted change requests of demo-city, oldest first.
+2. Open the correction from step 4: a map preview with the building highlighted, the diff (current and proposed house number) and the evidence (photo and capture point for field captures).
+3. **Approve** it, or write a reason and **Return to proposer**. Every decision writes an audit event:
+
+   ```sh
+   regsql "select seq, action, payload from register.audit_event where action like 'change_request.%' order by seq desc limit 3"
+   ```
+
+4. `approver` is also an editor: submit a correction as `approver` on the map, then open it in the inbox. **Approve** and **Return** are disabled with the four-eyes explanation, and the API answers `403` if called directly.
 
 ### 5. Field app: capture offline, sync once
 
@@ -131,18 +174,24 @@ pnpm --filter @ugaddress/field ios           # or: android (see note below)
 5. Check that the photo is in Record Store and the capture became one change request:
 
    ```sh
-   regsql "select id, source, photo_object_key from register.change_request where source = 'field' order by created_at desc limit 3"
+   regsql "select id, source, photo_object_key, photo_sha256 from register.change_request where source = 'field' order by created_at desc limit 3"
    ```
+
+   The app hashed the photo (SHA-256) on the phone when it was taken; the backend read the stored object back from Record Store, hashed it again and accepted the capture only because both matched. A mismatch is answered with `422` ("Photo integrity check failed"), nothing is kept, and the app retries on the next sync. The hash is shown with the evidence in the console inbox and recorded in the `field.photo_stored` audit event.
 
 6. Press **Sync now** again or retry the same upload: the idempotency key makes the server return the existing change request, and no duplicate is created. The same guarantee is covered by automated tests (`RegisterApiIT.fieldCaptureStoresThePhotoAndRetriesDoNotDuplicate` and the field app's queue tests).
 
-On a physical phone or the Android emulator, `localhost` is not the computer: set `OIDC_PUBLIC_URL` in the root `.env` and the URLs in `apps/field/.env` to your computer's LAN IP (or `10.0.2.2` on the Android emulator), then `make down && make up`, so the token issuer matches what the backend accepts.
+Testing on a real (low-end) Android phone, including how to install the APK built with `make field-apk`: [docs/testing/android-device.md](docs/testing/android-device.md).
+
+On the Android emulator, keep `localhost` and forward the ports: `adb reverse tcp:3000 tcp:3000`, and the same for 3002, 8080 and 9000. On a physical phone, `localhost` is not the computer: set `OIDC_PUBLIC_URL`, `PORTAL_PUBLIC_URL` and `TILES_PUBLIC_URL` in the root `.env` and the URLs in `apps/field/.env` to your computer's LAN IP, then `make down && make up`, so the token issuer matches what the backend accepts and the map style points the phone at reachable hosts.
 
 ## Everyday commands
 
 | Command | What it does |
 |---|---|
 | `make up` / `make down` | start / stop the local environment |
+| `make basemap` | download and verify the self-hosted basemap (`BASEMAP_AREA=uganda` or `demo`) |
+| `make e2e` | Playwright map tests of portal and console against the running stack |
 | `make test` | backend `./mvnw verify` (unit, Testcontainers, Modulith, ArchUnit) and all JavaScript tests |
 | `make lint` | OpenAPI lint, ESLint and `tsc --noEmit` for every package |
 | `make generate` | regenerate the TypeScript API client after changing the contract |
@@ -156,6 +205,7 @@ CI ([.github/workflows](.github/workflows)) runs the same checks on every pull r
 - [CLAUDE.md](CLAUDE.md): stack, layout, conventions and commands at a glance
 - [docs/adr](docs/adr): architecture decision records
 - [docs/plan/bootstrap.md](docs/plan/bootstrap.md): bootstrap plan, pinned versions and deviations
+- [docs/plan/session-2.md](docs/plan/session-2.md): session 2 plan (maps, search, approvals, photo integrity, MFA, Android)
 - [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 ## License

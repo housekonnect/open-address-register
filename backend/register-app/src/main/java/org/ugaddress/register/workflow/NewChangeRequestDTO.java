@@ -16,10 +16,13 @@ import org.locationtech.jts.geom.Point;
  * @param proposedLocation proposed point, if any
  * @param proposedHouseNumber proposed house number, if any
  * @param photoObjectKey object-storage key of an attached photo, if any
+ * @param photoSha256 verified SHA-256 of the attached photo, if any
+ * @param locationMocked whether the device reported the proposed location as mocked
  */
 public record NewChangeRequestDTO(String kind, String source, @Nullable UUID targetObjectId,
                                   @Nullable UUID thoroughfareId, String summary, @Nullable Point proposedLocation,
-                                  @Nullable String proposedHouseNumber, @Nullable String photoObjectKey) {
+                                  @Nullable String proposedHouseNumber, @Nullable String photoObjectKey,
+                                  @Nullable String photoSha256, boolean locationMocked) {
 
     /**
      * Creates the DTO.
@@ -32,6 +35,8 @@ public record NewChangeRequestDTO(String kind, String source, @Nullable UUID tar
      * @param proposedLocation location
      * @param proposedHouseNumber house number
      * @param photoObjectKey photo key
+     * @param photoSha256 photo hash
+     * @param locationMocked mocked-location flag
      */
     public NewChangeRequestDTO {
         Objects.requireNonNull(kind, "kind");

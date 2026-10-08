@@ -65,13 +65,22 @@ public final class ObjectApiMapper {
         return api;
     }
 
-    private static org.ugaddress.api.v1.model.Address address(final AddressableObjectDTO.Address address) {
-        final List<AdminUnitRef> units = address.adminUnits().stream()
+    /**
+     * Maps a chain of admin units.
+     *
+     * @param units admin units, smallest first
+     * @return the API representation, in the same order
+     */
+    public static List<AdminUnitRef> adminUnits(final List<AdminUnitDTO> units) {
+        return units.stream()
             .map(u -> new AdminUnitRef(u.id(), AdminUnitRef.LevelEnum.fromValue(u.level()), u.name()))
             .toList();
+    }
+
+    private static org.ugaddress.api.v1.model.Address address(final AddressableObjectDTO.Address address) {
         final org.ugaddress.api.v1.model.Address api = new org.ugaddress.api.v1.model.Address(address.id(),
-            address.houseNumber(), new ThoroughfareRef(address.thoroughfareId(), address.thoroughfareName()), units,
-            lines(address));
+            address.houseNumber(), new ThoroughfareRef(address.thoroughfareId(), address.thoroughfareName()),
+            adminUnits(address.adminUnits()), lines(address));
         api.setUnit(address.unit());
         api.setPostcode(address.postcode());
         return api;

@@ -2,7 +2,7 @@
  * Shared design tokens of the National Address Register web apps.
  *
  * Components use semantic tokens only (bg-background, text-muted-foreground, border-border …), never raw palette
- * colours. Values are HSL so that MapLibre can read the map tokens at runtime.
+ * colours. Map colours live in src/lib/map-style.ts, because the map style is served to all clients.
  * Apps import this file and add an @source for their own files.
  */
 @import "tailwindcss";
@@ -35,17 +35,6 @@
   --border: hsl(40 15% 85%);
   --input: hsl(40 15% 82%);
   --ring: hsl(152 55% 32%);
-
-  /* Map layers (read by MapLibre at runtime). */
-  --map-background: hsl(40 30% 95%);
-  --map-boundary: hsl(150 10% 60%);
-  --map-street: hsl(150 10% 55%);
-  --map-street-own: hsl(152 55% 30%);
-  --map-building: hsl(40 15% 78%);
-  --map-building-outline: hsl(40 10% 60%);
-  --map-highlight: hsl(43 90% 50%);
-  --map-entrance: hsl(210 60% 45%);
-  --map-label: hsl(150 25% 15%);
 }
 
 .dark {
@@ -69,16 +58,6 @@
   --border: hsl(150 10% 22%);
   --input: hsl(150 10% 26%);
   --ring: hsl(152 45% 52%);
-
-  --map-background: hsl(150 15% 12%);
-  --map-boundary: hsl(150 8% 40%);
-  --map-street: hsl(150 8% 45%);
-  --map-street-own: hsl(152 45% 52%);
-  --map-building: hsl(150 8% 26%);
-  --map-building-outline: hsl(150 8% 40%);
-  --map-highlight: hsl(43 85% 58%);
-  --map-entrance: hsl(210 60% 62%);
-  --map-label: hsl(40 25% 92%);
 }
 
 @theme inline {

@@ -8,9 +8,11 @@ const capture: QueuedCapture = {
   longitude: 32.5945,
   latitude: 0.3502,
   accuracyMeters: 4,
+  locationMocked: false,
   kind: "building",
   note: "No plate yet",
   photoUri: "file:///captures/1.jpg",
+  photoSha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   status: "pending",
   attempts: 0,
   lastError: null,
@@ -28,6 +30,7 @@ function uploaderWith(response: Response | Error, token: string | null = "token-
     apiUrl: "http://api.test/",
     getAccessToken: async () => token ?? undefined,
     writeMetadataFile: async () => "file:///cache/metadata.json",
+    filePart: (uri: string, name: string, type: string) => ({ uri, name, type }) as unknown as Blob,
     fetchImpl,
   });
   return { upload, requests };
@@ -52,6 +55,28 @@ describe("createUploader", () => {
     expect(headers.Authorization).toBe("Bearer token-1");
   });
 
+  it("sends metadata and photo as file parts with their content types", async () => {
+    // GIVEN an uploader that records the parts it builds
+    const parts: [string, string, string][] = [];
+    const upload = createUploader({
+      apiUrl: "http://api.test",
+      getAccessToken: async () => "token-1",
+      writeMetadataFile: async () => "file:///cache/metadata.json",
+      filePart: (uri, name, type) => {
+        parts.push([uri, name, type]);
+        return new Blob([]);
+      },
+      fetchImpl: (async () => json(201, { id: "cr-1", changeRequestId: "cr-1", photoStored: true })) as unknown as typeof fetch,
+    });
+    // WHEN a capture is uploaded
+    await upload(capture);
+    // THEN the metadata is JSON and the photo a JPEG, both read from local files
+    expect(parts).toEqual([
+      ["file:///cache/metadata.json", "metadata.json", "application/json"],
+      ["file:///captures/1.jpg", `${capture.id}.jpg`, "image/jpeg"],
+    ]);
+  });
+
   it("maps failures to retry decisions", async () => {
     expect((await uploaderWith(new TypeError("Network request failed")).upload(capture))).toEqual({ ok: false, failure: { kind: "network" } });
     expect((await uploaderWith(json(401, {})).upload(capture))).toEqual({ ok: false, failure: { kind: "unauthorized" } });
@@ -63,11 +88,27 @@ describe("createUploader", () => {
     expect((await uploaderWith(json(201, {}), null).upload(capture))).toEqual({ ok: false, failure: { kind: "unauthorized" } });
   });
 
+  it("retries a capture whose stored photo did not match the device's hash", async () => {
+    // GIVEN the server reports a photo integrity mismatch (it kept nothing)
+    const mismatch = json(422, { title: "Photo integrity check failed", status: 422, detail: "Nothing was kept" });
+    // WHEN the capture is uploaded
+    // THEN the capture stays pending for the next sync instead of being marked failed
+    expect(await uploaderWith(mismatch).upload(capture)).toEqual({ ok: false, failure: { kind: "server", status: 422 } });
+    // AND a reused idempotency key (also 422) is still a permanent rejection
+    expect(await uploaderWith(json(422, { title: "Idempotency key reused", detail: "reused" })).upload(capture)).toEqual({
+      ok: false,
+      failure: { kind: "rejected", status: 422, detail: "reused" },
+    });
+  });
+
   it("builds contract-conformant metadata", () => {
     expect(captureMetadata(capture)).toMatchObject({
       kind: "building",
       location: { type: "Point", coordinates: [32.5945, 0.3502] },
       note: "No plate yet",
+      photoSha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      locationMocked: false,
     });
+    expect(captureMetadata({ ...capture, locationMocked: true }).locationMocked).toBe(true);
   });
 });

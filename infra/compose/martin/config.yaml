@@ -11,3 +11,9 @@ postgres:
     tables:
       from_schemas: [tiles]
       source_id_format: "{table}"
+
+# Self-hosted basemap: a Protomaps extract of OpenStreetMap written by `make basemap` into the read-only volume
+# mounted at /basemap. Served as the source `basemap`.
+pmtiles:
+  sources:
+    basemap: /basemap/basemap.pmtiles

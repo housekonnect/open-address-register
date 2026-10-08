@@ -8,9 +8,11 @@ interface Row {
   longitude: number;
   latitude: number;
   accuracy_meters: number | null;
+  location_mocked: number;
   kind: string;
   note: string | null;
   photo_uri: string;
+  photo_sha256: string;
   status: string;
   attempts: number;
   last_error: string | null;
@@ -25,9 +27,11 @@ const SCHEMA = `
     longitude REAL NOT NULL,
     latitude REAL NOT NULL,
     accuracy_meters REAL,
+    location_mocked INTEGER NOT NULL DEFAULT 0,
     kind TEXT NOT NULL,
     note TEXT,
     photo_uri TEXT NOT NULL,
+    photo_sha256 TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'pending',
     attempts INTEGER NOT NULL DEFAULT 0,
     last_error TEXT,
@@ -44,9 +48,11 @@ function fromRow(row: Row): QueuedCapture {
     longitude: row.longitude,
     latitude: row.latitude,
     accuracyMeters: row.accuracy_meters,
+    locationMocked: row.location_mocked === 1,
     kind: row.kind as CaptureKind,
     note: row.note,
     photoUri: row.photo_uri,
+    photoSha256: row.photo_sha256,
     status: row.status as CaptureStatus,
     attempts: row.attempts,
     lastError: row.last_error,
@@ -60,16 +66,29 @@ export class SqliteQueueStore implements QueueStore {
 
   static async open(db: SQLiteDatabase): Promise<SqliteQueueStore> {
     await db.execAsync(`PRAGMA journal_mode = WAL; ${SCHEMA}`);
+    // Queues created by earlier versions get the newer columns. Captures queued before photo hashes existed upload
+    // without a valid hash and the server rejects them, so no unverified photo is ever accepted.
+    const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(capture_queue)");
+    const added: [string, string][] = [
+      ["photo_sha256", "TEXT NOT NULL DEFAULT ''"],
+      ["location_mocked", "INTEGER NOT NULL DEFAULT 0"],
+    ];
+    for (const [name, definition] of added) {
+      if (!columns.some((c) => c.name === name)) {
+        await db.execAsync(`ALTER TABLE capture_queue ADD COLUMN ${name} ${definition}`);
+      }
+    }
     return new SqliteQueueStore(db);
   }
 
   async insert(c: QueuedCapture): Promise<void> {
     await this.db.runAsync(
-      `INSERT INTO capture_queue (id, idempotency_key, captured_at, longitude, latitude, accuracy_meters, kind, note,
-                                  photo_uri, status, attempts, last_error, change_request_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [c.id, c.idempotencyKey, c.capturedAt, c.longitude, c.latitude, c.accuracyMeters, c.kind, c.note, c.photoUri,
-        c.status, c.attempts, c.lastError, c.changeRequestId],
+      `INSERT INTO capture_queue (id, idempotency_key, captured_at, longitude, latitude, accuracy_meters,
+                                  location_mocked, kind, note, photo_uri, photo_sha256, status, attempts, last_error,
+                                  change_request_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [c.id, c.idempotencyKey, c.capturedAt, c.longitude, c.latitude, c.accuracyMeters, c.locationMocked ? 1 : 0,
+        c.kind, c.note, c.photoUri, c.photoSha256, c.status, c.attempts, c.lastError, c.changeRequestId],
     );
   }
 

@@ -1,15 +1,15 @@
-import { Camera, Map, UserLocation } from "@maplibre/maplibre-react-native";
+import { Camera, Map, UserLocation, type CameraRef } from "@maplibre/maplibre-react-native";
 import * as Crypto from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { photoSha256 } from "../capture/photo-hash";
 import { config } from "../config";
 import { t, type MessageKey } from "../i18n";
-import { fieldMapStyle } from "../map/style";
 import type { CaptureKind, QueuedCapture } from "../queue/types";
-import { useTokens, type Tokens } from "../theme/tokens";
+import { useMapStyleUrl, useTokens, type Tokens } from "../theme/tokens";
 import type { useCaptureQueue } from "../useCaptureQueue";
 
 const KINDS: CaptureKind[] = ["building", "entrance", "landmark", "facility"];
@@ -20,46 +20,80 @@ interface Props {
   onSignOut: () => void;
 }
 
-/** Photo copied into the app's document directory so it survives until the capture is uploaded. */
-function keepPhoto(uri: string): string {
+interface KeptPhoto {
+  uri: string;
+  sha256: string;
+}
+
+/**
+ * Copies the photo into the app's document directory, so it survives until the capture is uploaded, and hashes
+ * the copy's bytes there and then: the backend compares this SHA-256 with the photo it stores.
+ */
+async function keepPhoto(uri: string): Promise<KeptPhoto> {
   const directory = new Directory(Paths.document, "captures");
   if (!directory.exists) directory.create({ intermediates: true, idempotent: true });
   const target = new File(directory, `${Crypto.randomUUID()}.jpg`);
-  new File(uri).copy(target);
-  return target.uri;
+  // copy() resolves when the file is on disk; hashing before that fails with ENOENT on Android.
+  await new File(uri).copy(target);
+  const sha256 = await photoSha256(await target.bytes(), (data) =>
+    Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, data),
+  );
+  return { uri: target.uri, sha256 };
 }
 
 export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
   const tokens = useTokens();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const mapStyle = useMemo(() => fieldMapStyle(config.tilesUrl, tokens), [tokens]);
+  const mapStyleUrl = useMapStyleUrl(config.mapStyleUrl);
+  const camera = useRef<CameraRef>(null);
   const [kind, setKind] = useState<CaptureKind>("building");
   const [note, setNote] = useState("");
-  const [photoUri, setPhotoUri] = useState<string>();
+  const [photo, setPhoto] = useState<KeptPhoto>();
   const [message, setMessage] = useState<string>();
 
   async function takePhoto() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) return setMessage(t("capture.cameraDenied"));
     const result = await ImagePicker.launchCameraAsync({ quality: 0.6, exif: false });
-    if (!result.canceled && result.assets[0]) setPhotoUri(keepPhoto(result.assets[0].uri));
+    if (result.canceled || !result.assets[0]) return;
+    try {
+      setPhoto(await keepPhoto(result.assets[0].uri));
+    } catch {
+      setMessage(t("capture.photoFailed"));
+    }
+  }
+
+  async function showMyLocation() {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) return setMessage(t("capture.locationDenied"));
+    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    camera.current?.easeTo({ center: [position.coords.longitude, position.coords.latitude], zoom: 17, duration: 500 });
   }
 
   async function save() {
-    if (!photoUri) return setMessage(t("capture.needPhoto"));
+    if (!photo) return setMessage(t("capture.needPhoto"));
     const permission = await Location.requestForegroundPermissionsAsync();
     if (!permission.granted) return setMessage(t("capture.locationDenied"));
-    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    let position: Location.LocationObject;
+    try {
+      position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    } catch {
+      // No fix yet (indoors, GPS just switched on): keep the photo and note, let the verifier try again.
+      return setMessage(t("capture.locationUnavailable"));
+    }
     await queue.enqueue({
       longitude: position.coords.longitude,
       latitude: position.coords.latitude,
       accuracyMeters: position.coords.accuracy,
+      // Android only: true when a mock location app supplied the position. Flagged for the approver, not blocked.
+      locationMocked: position.mocked === true,
       kind,
       note: note.trim() === "" ? null : note.trim(),
-      photoUri,
+      photoUri: photo.uri,
+      photoSha256: photo.sha256,
     });
     setNote("");
-    setPhotoUri(undefined);
+    setPhoto(undefined);
     setMessage(t("capture.saved"));
   }
 
@@ -72,10 +106,14 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
         </Pressable>
       </View>
       <View style={styles.map} accessibilityLabel={t("map.label")}>
-        <Map mapStyle={mapStyle} style={StyleSheet.absoluteFill} attribution={false} logo={false}>
-          <Camera initialViewState={{ center: config.defaultCenter, zoom: 16 }} trackUserLocation="default" />
+        <Map mapStyle={mapStyleUrl} style={StyleSheet.absoluteFill} attribution={false} logo={false}>
+          <Camera ref={camera} initialViewState={{ bounds: config.defaultBounds, padding: { top: 16, right: 16, bottom: 16, left: 16 } }} />
           <UserLocation />
         </Map>
+        <Pressable accessibilityRole="button" style={styles.mapButton} onPress={() => void showMyLocation()}>
+          <Text style={styles.mapButtonText}>{t("map.myLocation")}</Text>
+        </Pressable>
+        <Text style={styles.attribution}>{t("map.attribution")}</Text>
       </View>
       <Text style={styles.section}>{t("capture.title")}</Text>
       <Text style={styles.label}>{t("capture.kind")}</Text>
@@ -102,7 +140,7 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
       />
       <View style={styles.row}>
         <Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={() => void takePhoto()}>
-          <Text style={styles.secondaryButtonText}>{photoUri ? t("capture.photoTaken") : t("capture.photo")}</Text>
+          <Text style={styles.secondaryButtonText}>{photo ? t("capture.photoTaken") : t("capture.photo")}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" style={styles.button} onPress={() => void save()}>
           <Text style={styles.buttonText}>{t("capture.save")}</Text>
@@ -140,6 +178,7 @@ function QueueItem({ item, styles }: { item: QueuedCapture; styles: ReturnType<t
         {t(`queue.status.${item.status}`)}
         {item.lastError && item.status !== "synced" ? ` (${item.lastError})` : ""}
       </Text>
+      {item.locationMocked && <Text style={styles.muted}>{t("queue.locationMocked")}</Text>}
     </View>
   );
 }
@@ -153,6 +192,9 @@ function createStyles(tokens: Tokens) {
     label: { color: tokens.mutedForeground },
     link: { color: tokens.primary, fontWeight: "600" },
     map: { height: 220, borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: tokens.border },
+    mapButton: { position: "absolute", top: 8, right: 8, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: tokens.card, borderWidth: 1, borderColor: tokens.border },
+    mapButtonText: { color: tokens.foreground, fontWeight: "600" },
+    attribution: { position: "absolute", bottom: 0, right: 0, paddingHorizontal: 4, fontSize: 10, color: tokens.foreground, backgroundColor: tokens.card },
     row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.card },
     chipSelected: { backgroundColor: tokens.primary, borderColor: tokens.primary },

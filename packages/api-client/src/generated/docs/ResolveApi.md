@@ -2,11 +2,11 @@
 
 All URIs are relative to *http://localhost:8080*
 
-| Method                               | HTTP request        | Description                                        |
-| ------------------------------------ | ------------------- | -------------------------------------------------- |
-| [**resolve**](ResolveApi.md#resolve) | **GET** /v1/resolve | Resolve a national ID or an alias to an address    |
-| [**reverse**](ResolveApi.md#reverse) | **GET** /v1/reverse | Nearest addresses to a point (not implemented yet) |
-| [**search**](ResolveApi.md#search)   | **GET** /v1/search  | Free-text address search (not implemented yet)     |
+| Method                               | HTTP request        | Description                                     |
+| ------------------------------------ | ------------------- | ----------------------------------------------- |
+| [**resolve**](ResolveApi.md#resolve) | **GET** /v1/resolve | Resolve a national ID or an alias to an address |
+| [**reverse**](ResolveApi.md#reverse) | **GET** /v1/reverse | What is addressed near a point                  |
+| [**search**](ResolveApi.md#search)   | **GET** /v1/search  | Free-text address search                        |
 
 ## resolve
 
@@ -82,9 +82,11 @@ example().catch(console.error);
 
 ## reverse
 
-> AddressPage reverse(lat, lon, cursor, limit)
+> ReversePage reverse(lat, lon, radius, cursor, limit)
 
-Nearest addresses to a point (not implemented yet)
+What is addressed near a point
+
+Returns what lies within &#x60;radius&#x60; metres of the point, nearest first. - Public callers get **street level** only: the nearest streets with their postcode and admin units, and a distance rounded to 10 m. No house number, national ID or object is returned, so the endpoint cannot be used to locate a particular home. - Callers with &#x60;register:partner&#x60; get the nearest addressable objects with their full address and entrance coordinates, including residential entrances.
 
 ### Example
 
@@ -105,6 +107,8 @@ async function example() {
     lat: 1.2,
     // number
     lon: 1.2,
+    // number | Search radius in metres. (optional)
+    radius: 56,
     // string | Opaque cursor from a previous page\'s `nextCursor`. (optional)
     cursor: cursor_example,
     // number (optional)
@@ -129,12 +133,13 @@ example().catch(console.error);
 | ---------- | -------- | ----------------------------------------------------------------- | ------------------------------------ |
 | **lat**    | `number` |                                                                   | [Defaults to `undefined`]            |
 | **lon**    | `number` |                                                                   | [Defaults to `undefined`]            |
+| **radius** | `number` | Search radius in metres.                                          | [Optional] [Defaults to `50`]        |
 | **cursor** | `string` | Opaque cursor from a previous page\&#39;s &#x60;nextCursor&#x60;. | [Optional] [Defaults to `undefined`] |
 | **limit**  | `number` |                                                                   | [Optional] [Defaults to `20`]        |
 
 ### Return type
 
-[**AddressPage**](AddressPage.md)
+[**ReversePage**](ReversePage.md)
 
 ### Authorization
 
@@ -149,7 +154,7 @@ example().catch(console.error);
 
 | Status code | Description                                          | Response headers |
 | ----------- | ---------------------------------------------------- | ---------------- |
-| **200**     | Addresses ordered by distance.                       | -                |
+| **200**     | Matches ordered by distance.                         | -                |
 | **400**     | The request is malformed or fails validation.        | -                |
 | **501**     | The operation is contracted but not implemented yet. | -                |
 
@@ -159,7 +164,9 @@ example().catch(console.error);
 
 > AddressPage search(q, cursor, limit)
 
-Free-text address search (not implemented yet)
+Free-text address search
+
+Searches street names, addresses (&#x60;5 Amani Avenue&#x60;), building, landmark and facility names, national IDs and aliases. Matching ignores case and accents and tolerates typos. A query that is a valid national ID in any display form (&#x60;4821 093 7618&#x60;, &#x60;4821-093-7618&#x60;, &#x60;DEMO 4821 093 7618&#x60;) returns that object first. Results are ranked best match first; residential entrance coordinates are omitted unless the caller holds &#x60;register:partner&#x60;.
 
 ### Example
 

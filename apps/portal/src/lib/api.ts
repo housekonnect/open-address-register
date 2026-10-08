@@ -1,5 +1,7 @@
 import "server-only";
-import { Configuration, ResolveApi, ResponseError, type Resolution } from "@ugaddress/api-client";
+import { Configuration, ResolveApi, ResponseError, type AddressPage, type Resolution } from "@ugaddress/api-client";
+
+export type SearchResult = { status: "ok"; page: AddressPage } | { status: "invalid" } | { status: "unavailable" };
 
 export type ResolveResult =
   | { status: "found"; resolution: Resolution }
@@ -23,6 +25,16 @@ export async function resolveReference(ref: string): Promise<ResolveResult> {
       if (error.response.status === 404) return { status: "not-found" };
       if (error.response.status === 400) return { status: "invalid" };
     }
+    return { status: "unavailable" };
+  }
+}
+
+/** Searches the register (server side, anonymous); best match first. */
+export async function searchRegister(q: string, cursor?: string): Promise<SearchResult> {
+  try {
+    return { status: "ok", page: await api().search({ q, limit: 20, ...(cursor ? { cursor } : {}) }) };
+  } catch (error) {
+    if (error instanceof ResponseError && error.response.status === 400) return { status: "invalid" };
     return { status: "unavailable" };
   }
 }

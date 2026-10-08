@@ -1,6 +1,7 @@
 "use server";
 
-import { ChangesApi, Configuration, ResponseError } from "@ugaddress/api-client";
+import { ResponseError } from "@ugaddress/api-client";
+import { changesApi } from "@/lib/api";
 import { validateCorrection, type CorrectionInput, type CorrectionProblem } from "@/lib/correction";
 import { currentSession } from "@/lib/session";
 
@@ -15,13 +16,7 @@ export async function submitCorrection(input: CorrectionInput): Promise<SubmitRe
   const problem = validateCorrection(input);
   if (problem) return { status: "error", reason: problem };
 
-  const api = new ChangesApi(
-    new Configuration({
-      basePath: process.env.API_URL ?? "http://localhost:8080",
-      accessToken: session.accessToken,
-      fetchApi: (url, init) => fetch(url, { ...init, cache: "no-store" }),
-    }),
-  );
+  const api = changesApi(session);
   try {
     const created = await api.createChangeRequest({
       idempotencyKey: input.idempotencyKey,

@@ -14,14 +14,14 @@ import { submitCorrection, type SubmitResult } from "@/app/actions";
 import { newIdempotencyKey } from "@/lib/correction";
 
 interface WorkspaceProps {
-  tilesUrl: string;
-  center: [number, number];
+  styleUrl: string;
+  bounds: [number, number, number, number];
   custodian: string | null;
   canEdit: boolean;
 }
 
 /** Map of the custodian's streets with a correction form for the selected street or building. */
-export function Workspace({ tilesUrl, center, custodian, canEdit }: WorkspaceProps) {
+export function Workspace({ styleUrl, bounds, custodian, canEdit }: WorkspaceProps) {
   const t = useTranslations("workspace");
   const [selection, setSelection] = useState<MapSelection>();
   const [summary, setSummary] = useState("");
@@ -65,9 +65,8 @@ export function Workspace({ tilesUrl, center, custodian, canEdit }: WorkspacePro
         </CardHeader>
         <CardContent>
           <RegisterMap
-            tilesUrl={tilesUrl}
-            center={center}
-            zoom={15}
+            styleUrl={styleUrl}
+            bounds={bounds}
             ownCustodian={custodian ?? undefined}
             highlightNationalId={selection?.nationalId}
             onSelect={select}

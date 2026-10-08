@@ -13,7 +13,7 @@
  */
 
 /**
- *
+ * `returned`: sent back to the proposer with a written reason.
  * @export
  */
 export const ChangeRequestState = {
@@ -21,6 +21,7 @@ export const ChangeRequestState = {
   InReview: "in_review",
   Approved: "approved",
   Rejected: "rejected",
+  Returned: "returned",
   Applied: "applied",
   Withdrawn: "withdrawn",
 } as const;

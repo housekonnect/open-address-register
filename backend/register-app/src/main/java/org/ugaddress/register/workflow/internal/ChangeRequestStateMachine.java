@@ -10,19 +10,22 @@ import org.ugaddress.db.generated.enums.ChangeState;
  *
  * <pre>
  * submitted ─► in_review ─► approved ─► applied
- *     │            │    └──► rejected
+ *     │            │    ├──► rejected
+ *     │            │    └──► returned (to the proposer, with a written reason)
  *     │            └────────► withdrawn
- *     ├──► approved / rejected / withdrawn
+ *     ├──► approved / rejected / returned / withdrawn
  * </pre>
  */
 public final class ChangeRequestStateMachine {
 
     private static final Map<ChangeState, Set<ChangeState>> TRANSITIONS = Map.of(
         ChangeState.submitted, EnumSet.of(ChangeState.in_review, ChangeState.approved, ChangeState.rejected,
+            ChangeState.returned, ChangeState.withdrawn),
+        ChangeState.in_review, EnumSet.of(ChangeState.approved, ChangeState.rejected, ChangeState.returned,
             ChangeState.withdrawn),
-        ChangeState.in_review, EnumSet.of(ChangeState.approved, ChangeState.rejected, ChangeState.withdrawn),
         ChangeState.approved, EnumSet.of(ChangeState.applied),
         ChangeState.rejected, EnumSet.noneOf(ChangeState.class),
+        ChangeState.returned, EnumSet.noneOf(ChangeState.class),
         ChangeState.applied, EnumSet.noneOf(ChangeState.class),
         ChangeState.withdrawn, EnumSet.noneOf(ChangeState.class));
 

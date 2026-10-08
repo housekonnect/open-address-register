@@ -1,11 +1,13 @@
 import "./globals.css";
 import { Badge } from "@ugaddress/ui/components/badge";
 import { Button } from "@ugaddress/ui/components/button";
-import { LogOut, MapPinned } from "lucide-react";
+import { Inbox, LogOut, Map as MapIcon, MapPinned } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { isApprover } from "@/lib/api";
 import { currentSession } from "@/lib/session";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,10 +25,30 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <NextIntlClientProvider>
           <header className="border-b bg-card">
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <span className="flex items-center gap-2 font-semibold">
-                <MapPinned aria-hidden className="size-5 text-primary" />
-                {t("name")}
-              </span>
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="flex items-center gap-2 font-semibold">
+                  <MapPinned aria-hidden className="size-5 text-primary" />
+                  {t("name")}
+                </span>
+                {session && (
+                  <nav className="flex items-center gap-1 text-sm">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href="/">
+                        <MapIcon aria-hidden />
+                        {t("nav.map")}
+                      </Link>
+                    </Button>
+                    {isApprover(session) && (
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href="/inbox">
+                          <Inbox aria-hidden />
+                          {t("nav.inbox")}
+                        </Link>
+                      </Button>
+                    )}
+                  </nav>
+                )}
+              </div>
               {session && (
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                   <span>{session.name}</span>

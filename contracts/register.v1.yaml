@@ -75,7 +75,13 @@ paths:
     get:
       operationId: search
       tags: [resolve]
-      summary: Free-text address search (not implemented yet)
+      summary: Free-text address search
+      description: |
+        Searches street names, addresses (`5 Amani Avenue`), building, landmark and facility names, national IDs and
+        aliases. Matching ignores case and accents and tolerates typos. A query that is a valid national ID in any
+        display form (`4821 093 7618`, `4821-093-7618`, `DEMO 4821 093 7618`) returns that object first. Results are
+        ranked best match first; residential entrance coordinates are omitted unless the caller holds
+        `register:partner`.
       parameters:
         - name: q
           in: query
@@ -102,7 +108,15 @@ paths:
     get:
       operationId: reverse
       tags: [resolve]
-      summary: Nearest addresses to a point (not implemented yet)
+      summary: What is addressed near a point
+      description: |
+        Returns what lies within `radius` metres of the point, nearest first.
+
+        - Public callers get **street level** only: the nearest streets with their postcode and admin units, and a
+          distance rounded to 10 m. No house number, national ID or object is returned, so the endpoint cannot be
+          used to locate a particular home.
+        - Callers with `register:partner` get the nearest addressable objects with their full address and entrance
+          coordinates, including residential entrances.
       parameters:
         - name: lat
           in: query
@@ -120,15 +134,25 @@ paths:
             format: double
             minimum: -180
             maximum: 180
+        - name: radius
+          in: query
+          required: false
+          description: Search radius in metres.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 500
+            default: 50
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Addresses ordered by distance.
+          description: Matches ordered by distance.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AddressPage"
+                $ref: "#/components/schemas/ReversePage"
         "400":
           $ref: "#/components/responses/BadRequest"
         "501":
@@ -179,6 +203,36 @@ paths:
           $ref: "#/components/responses/NotFound"
 
   /v1/change-requests:
+    get:
+      operationId: listChangeRequests
+      tags: [changes]
+      summary: Approver inbox
+      description: |
+        Change requests inside the caller's jurisdiction, oldest first. Requires the `custodian-approver` role.
+        Each item carries `permissions`, so a client can tell whether the caller may decide it (four-eyes rule).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ChangeRequestState"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of change requests.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeRequestPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       operationId: createChangeRequest
       tags: [changes]
@@ -217,6 +271,137 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/IdempotencyConflict"
+
+  /v1/change-requests/{id}:
+    get:
+      operationId: getChangeRequest
+      tags: [changes]
+      summary: One change request with its diff and evidence
+      description: Requires the `custodian-approver` role; the change request must lie in the caller's jurisdiction.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChangeRequestId"
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: The change request.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeRequest"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/change-requests/{id}/photo:
+    get:
+      operationId: getChangeRequestPhoto
+      tags: [field]
+      summary: Evidence photo of a change request
+      description: |
+        Streams the photo attached to a field capture. Same access rule as the change request itself; clients never
+        read the object store directly.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChangeRequestId"
+      responses:
+        "200":
+          description: The photo.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/change-requests/{id}/approve:
+    post:
+      operationId: approveChangeRequest
+      tags: [changes]
+      summary: Approve a change request (four-eyes rule)
+      description: |
+        Requires the `custodian-approver` role and the change request's jurisdiction. The proposer can never approve
+        their own request: that answers `403`. Writes an audit event.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChangeRequestId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: The approved change request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/IdempotencyConflict"
+
+  /v1/change-requests/{id}/return:
+    post:
+      operationId: returnChangeRequest
+      tags: [changes]
+      summary: Return a change request to its proposer with a written reason (four-eyes rule)
+      description: |
+        Same rules as approving. The reason is shown to the proposer; it must not contain personal data. Writes an
+        audit event.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChangeRequestId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeRequestReturn"
+      responses:
+        "200":
+          description: The returned change request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/IdempotencyConflict"
 
@@ -277,6 +462,11 @@ paths:
         Stores the photo in object storage and creates a change request for the captured point. Requires the
         `field-verifier` role. The client generates the `Idempotency-Key` when the capture is created offline and
         reuses it on every retry, so a capture is applied at most once. Resumable (chunked) uploads are planned.
+
+        **Photo integrity.** The client computes the SHA-256 of the photo bytes on the device when the photo is taken
+        and sends it as `metadata.photoSha256`. After storing the photo the server reads it back from object storage
+        and hashes it again. If the hashes differ, the photo is deleted, nothing is recorded and the answer is `422`;
+        otherwise the hash is kept with the evidence and in the audit event.
       security:
         - bearerAuth: []
       parameters:
@@ -311,7 +501,13 @@ paths:
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
         "422":
-          $ref: "#/components/responses/IdempotencyConflict"
+          description: |
+            The stored photo does not match `metadata.photoSha256` (title "Photo integrity check failed"; nothing was
+            kept), or the Idempotency-Key was already used with a different request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
 components:
   securitySchemes:
@@ -351,6 +547,13 @@ components:
         minimum: 1
         maximum: 100
         default: 20
+    ChangeRequestId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     IfNoneMatch:
       name: If-None-Match
       in: header
@@ -402,6 +605,12 @@ components:
             $ref: "#/components/schemas/Problem"
     NotFound:
       description: Nothing matches.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Conflict:
+      description: The resource is not in a state that allows this operation (e.g. already decided).
       content:
         application/problem+json:
           schema:
@@ -617,6 +826,44 @@ components:
         nextCursor:
           type: [string, "null"]
 
+    ReverseMatch:
+      type: object
+      description: |
+        One match of a reverse lookup. `precision` is `street` for public callers (no `object`) and `object` for
+        partners.
+      required: [precision, distanceMeters, thoroughfare, adminUnits]
+      properties:
+        precision:
+          type: string
+          enum: [street, object]
+        distanceMeters:
+          type: number
+          format: double
+          description: Distance from the point; rounded to 10 m at street precision.
+        thoroughfare:
+          $ref: "#/components/schemas/ThoroughfareRef"
+        postcode:
+          type: [string, "null"]
+        adminUnits:
+          type: array
+          description: Administrative units from the smallest to the largest.
+          items:
+            $ref: "#/components/schemas/AdminUnitRef"
+        object:
+          description: The addressed object; only at `object` precision (partners).
+          $ref: "#/components/schemas/AddressableObject"
+
+    ReversePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReverseMatch"
+        nextCursor:
+          type: [string, "null"]
+
     HistoryEntry:
       type: object
       required: [recordedAt, operation, version]
@@ -659,7 +906,8 @@ components:
 
     ChangeRequestState:
       type: string
-      enum: [submitted, in_review, approved, rejected, applied, withdrawn]
+      description: "`returned`: sent back to the proposer with a written reason."
+      enum: [submitted, in_review, approved, rejected, returned, applied, withdrawn]
 
     ChangeRequestCreate:
       type: object
@@ -714,6 +962,114 @@ components:
         createdAt:
           type: string
           format: date-time
+        decidedAt:
+          type: [string, "null"]
+          format: date-time
+        decisionReason:
+          type: [string, "null"]
+          description: Written reason of a return.
+        proposal:
+          $ref: "#/components/schemas/ChangeProposal"
+        target:
+          $ref: "#/components/schemas/ChangeTarget"
+        diff:
+          type: array
+          description: Current and proposed values of every field the change touches.
+          items:
+            $ref: "#/components/schemas/ChangeDiff"
+        evidence:
+          $ref: "#/components/schemas/ChangeEvidence"
+        permissions:
+          $ref: "#/components/schemas/ChangePermissions"
+
+    ChangeProposal:
+      type: object
+      properties:
+        houseNumber:
+          type: [string, "null"]
+        location:
+          $ref: "#/components/schemas/Point"
+
+    ChangeTarget:
+      type: object
+      description: What the change refers to, for display and the map preview.
+      required: [type, label]
+      properties:
+        type:
+          type: string
+          enum: [object, street, location]
+        label:
+          type: string
+          description: Address line, street name or object name.
+        nationalId:
+          type: [string, "null"]
+          pattern: "^[0-9]{11}$"
+        displayId:
+          type: [string, "null"]
+        location:
+          $ref: "#/components/schemas/Point"
+
+    ChangeDiff:
+      type: object
+      required: [field]
+      properties:
+        field:
+          type: string
+          enum: [houseNumber, location]
+        current:
+          type: [string, "null"]
+        proposed:
+          type: [string, "null"]
+
+    ChangeEvidence:
+      type: object
+      required: [photo]
+      properties:
+        photo:
+          type: boolean
+          description: A photo is attached; fetch it from `/v1/change-requests/{id}/photo`.
+        photoSha256:
+          type: [string, "null"]
+          description: SHA-256 of the photo, computed on the device and verified against the stored object.
+        locationMocked:
+          type: boolean
+          description: The capture's location came from a mock location provider on the device; check it.
+        location:
+          $ref: "#/components/schemas/Point"
+
+    ChangePermissions:
+      type: object
+      description: What the caller may do with this change request, computed by the server.
+      required: [decide]
+      properties:
+        decide:
+          type: boolean
+          description: Whether the caller may approve or return it.
+        reason:
+          type: [string, "null"]
+          description: Why not, if `decide` is false.
+          enum: [own_request, not_approver, outside_jurisdiction, already_decided, null]
+
+    ChangeRequestPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChangeRequest"
+        nextCursor:
+          type: [string, "null"]
+
+    ChangeRequestReturn:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Why the change is returned. Must not contain personal data.
 
     Change:
       type: object
@@ -770,7 +1126,7 @@ components:
 
     FieldCaptureMetadata:
       type: object
-      required: [capturedAt, location, kind]
+      required: [capturedAt, location, kind, photoSha256]
       properties:
         capturedAt:
           type: string
@@ -790,6 +1146,16 @@ components:
           type: [string, "null"]
           maxLength: 500
           description: Free text about the place. Must not contain personal data.
+        photoSha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+          description: SHA-256 of the photo bytes, lower-case hex, computed on the device when the photo was taken.
+        locationMocked:
+          type: boolean
+          default: false
+          description: |
+            The device reported the location as coming from a mock location provider (Android's mocked-location
+            flag). Such captures are accepted and flagged for the approver, never blocked.
 
     FieldCaptureUpload:
       type: object

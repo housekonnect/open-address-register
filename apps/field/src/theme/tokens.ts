@@ -12,10 +12,6 @@ export interface Tokens {
   border: string;
   destructive: string;
   success: string;
-  mapBackground: string;
-  mapStreet: string;
-  mapBuilding: string;
-  mapBuildingOutline: string;
 }
 
 const light: Tokens = {
@@ -29,10 +25,6 @@ const light: Tokens = {
   border: "hsl(40, 15%, 85%)",
   destructive: "hsl(4, 70%, 46%)",
   success: "hsl(152, 55%, 30%)",
-  mapBackground: "hsl(40, 30%, 95%)",
-  mapStreet: "hsl(150, 10%, 55%)",
-  mapBuilding: "hsl(40, 15%, 78%)",
-  mapBuildingOutline: "hsl(40, 10%, 60%)",
 };
 
 const dark: Tokens = {
@@ -46,12 +38,13 @@ const dark: Tokens = {
   border: "hsl(150, 10%, 22%)",
   destructive: "hsl(4, 70%, 58%)",
   success: "hsl(152, 45%, 52%)",
-  mapBackground: "hsl(150, 15%, 12%)",
-  mapStreet: "hsl(150, 8%, 45%)",
-  mapBuilding: "hsl(150, 8%, 26%)",
-  mapBuildingOutline: "hsl(150, 8%, 40%)",
 };
 
 export function useTokens(): Tokens {
   return useColorScheme() === "dark" ? dark : light;
+}
+
+/** URL of the shared map style for the current colour scheme (`?theme=dark` as on the web). */
+export function useMapStyleUrl(styleUrl: string): string {
+  return useColorScheme() === "dark" ? `${styleUrl}?theme=dark` : styleUrl;
 }

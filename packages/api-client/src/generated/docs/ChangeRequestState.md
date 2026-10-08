@@ -1,5 +1,7 @@
 # ChangeRequestState
 
+`returned`: sent back to the proposer with a written reason.
+
 ## Properties
 
 | Name | Type |

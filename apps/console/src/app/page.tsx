@@ -8,9 +8,10 @@ import { currentSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-function mapCenter(): [number, number] {
-  const [lon, lat] = (process.env.MAP_CENTER ?? "32.5900,0.3515").split(",").map(Number);
-  return [lon ?? 32.59, lat ?? 0.3515];
+/** Initial view `[west, south, east, north]`; defaults to the streets of the synthetic demo district. */
+function mapBounds(): [number, number, number, number] {
+  const [west, south, east, north] = (process.env.MAP_BOUNDS ?? "32.572,0.342,32.606,0.351").split(",").map(Number);
+  return [west ?? 32.572, south ?? 0.342, east ?? 32.606, north ?? 0.351];
 }
 
 export default async function ConsolePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -44,8 +45,8 @@ export default async function ConsolePage({ searchParams }: { searchParams: Prom
 
   return (
     <Workspace
-      tilesUrl={process.env.TILES_URL ?? "http://localhost:3002"}
-      center={mapCenter()}
+      styleUrl={process.env.MAP_STYLE_URL ?? "http://localhost:3000/map/style.json"}
+      bounds={mapBounds()}
       custodian={session.custodian}
       canEdit={session.groups.includes("custodian-editor")}
     />
