@@ -33,3 +33,4 @@ apps/field/web-build/
 bom.json
 bom.xml
 *.sarif
+apps/field/expo-env.d.ts

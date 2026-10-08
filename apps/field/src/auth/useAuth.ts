@@ -8,6 +8,8 @@ WebBrowser.maybeCompleteAuthSession();
 
 const TOKEN_KEY = "ugaddress.tokens";
 const redirectUri = AuthSession.makeRedirectUri({ scheme: config.scheme, path: "callback" });
+// expo-auth-session appends "/.well-known/openid-configuration"; Authentik issuers end with a slash.
+const discoveryUrl = config.oidcIssuer.replace(/\/+$/, "");
 
 async function loadTokens(): Promise<AuthSession.TokenResponse | undefined> {
   const raw = await SecureStore.getItemAsync(TOKEN_KEY);
@@ -24,7 +26,7 @@ async function saveTokens(tokens: AuthSession.TokenResponse | undefined): Promis
  * Tokens live in the platform keystore (expo-secure-store) and are refreshed with the refresh token.
  */
 export function useAuth() {
-  const discovery = AuthSession.useAutoDiscovery(config.oidcIssuer);
+  const discovery = AuthSession.useAutoDiscovery(discoveryUrl);
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     { clientId: config.clientId, redirectUri, scopes: ["openid", "profile", "offline_access", "ugaddress"], usePKCE: true },
     discovery,
