@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "UGAddress Field",
+    "slug": "ugaddress-field",
+    "scheme": "ugaddress",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "org.ugaddress.field",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "org.ugaddress.field"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-web-browser",
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "The location of a capture is recorded so the register knows where the building or entrance is." }
+      ],
+      [
+        "expo-image-picker",
+        { "cameraPermission": "Photos document buildings and entrances for the register. Do not photograph people." }
+      ]
+    ]
+  }
+}
