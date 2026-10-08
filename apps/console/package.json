@@ -11,7 +11,8 @@
     "start": "next start --port 3001",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@ugaddress/api-client": "workspace:*",
@@ -29,6 +30,7 @@
     "undici": "8.11.2"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "26.6.4",
     "@types/react": "19.3.0",

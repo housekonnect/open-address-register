@@ -15,6 +15,7 @@ An independent, open-source address register for Uganda, designed so the governm
 | Custodian console | [apps/console](apps/console) | Next.js, Authentik login (OIDC code flow) |
 | Field app | [apps/field](apps/field) | Expo / React Native, offline SQLite queue, PKCE |
 | Local environment | [infra/compose](infra/compose) | Docker Compose: PostGIS, Authentik, Record Store, Martin |
+| Basemap | [infra/basemap](infra/basemap) | `make basemap`: self-hosted Protomaps extract of OpenStreetMap, glyphs and sprites |
 
 Read [CLAUDE.md](CLAUDE.md) for conventions and [docs/adr](docs/adr) for the decisions behind them.
 
@@ -26,7 +27,7 @@ Requirements: **Docker**, **JDK 25** (`sdk env` picks it up from [.sdkmanrc](.sd
 make up
 ```
 
-`make up` creates `.env` with random local secrets (once), builds the backend jar (jOOQ code generation runs PostGIS in Testcontainers), builds the images and waits until every service is healthy. The first run downloads all images and takes several minutes; on Apple Silicon the PostGIS image runs under emulation.
+`make up` creates `.env` with random local secrets (once), runs `make basemap` (below), builds the backend jar (jOOQ code generation runs PostGIS in Testcontainers), builds the images and waits until every service is healthy. The first run downloads all images and takes several minutes; on Apple Silicon the PostGIS image runs under emulation.
 
 | Service | URL |
 |---|---|
@@ -38,6 +39,15 @@ make up
 | Record Store (S3 API) | http://localhost:7600 |
 
 `make down` stops everything and keeps the data; `make db-reset` recreates the register database with fresh fixtures.
+
+### Maps
+
+Every map (portal, console, field app) loads one style, served by the portal at http://localhost:3000/map/style.json: a self-hosted [Protomaps](https://protomaps.com) basemap built from OpenStreetMap, with the register's streets, buildings and public entrances on top. Nothing is fetched from outside the stack at runtime.
+
+- `make basemap` downloads a Uganda extract (about 630 MB, once) with the `pmtiles extract` CLI, plus the fonts and sprites from Protomaps' basemaps assets, verifies every file against the SHA-256 pinned in [infra/basemap/pins.env](infra/basemap/pins.env) and stores them in the Docker volume `ugaddress-basemap`. Martin serves the tiles; the portal serves fonts and sprites. The files are never committed.
+- `make basemap BASEMAP_AREA=demo` (and `make up BASEMAP_AREA=demo`) uses a 4 MB extract covering only the synthetic district, as CI does.
+- Maps show "© OpenStreetMap contributors" (ODbL).
+- `make e2e` runs the Playwright map tests of the portal and the console against the running stack. They wait for the map to finish rendering, check that basemap and register tiles returned 200 and that no request left the stack, and save a screenshot. The first time, install the browser with `pnpm --filter @ugaddress/portal exec playwright install chromium`, or set `PLAYWRIGHT_CHANNEL=chrome` to use an installed Chrome.
 
 > `.env` holds the secrets the data volumes were initialised with. Do not regenerate it while volumes exist; to start over completely, run `docker compose -f infra/compose/docker-compose.yml --env-file .env down -v` first, then delete `.env`.
 
@@ -96,7 +106,7 @@ Expected: 42 buildings, 8 facilities and 50 entrances, all `demonstration`; the 
 ### 3. Portal: resolve an ID
 
 1. Open http://localhost:3000 and type `9526 184 5754` (spaces, dashes or the `DEMO` prefix are all accepted). Change one digit to see the check digit catch the typo before any request is made.
-2. Press **Look up**. The address page shows the address lines, the `DEMO` ID, a MapLibre map of the register's own Martin tiles with the building highlighted, and a QR code that links back to the page.
+2. Press **Look up**. The address page shows the address lines, the `DEMO` ID, a map of the address on the self-hosted OpenStreetMap basemap with the building highlighted, and a QR code that links back to the page.
 3. Residential entrance coordinates are not shown publicly; the API returns them only to callers with the `register:partner` scope.
 
 The same lookup through the API: `curl "http://localhost:8080/v1/resolve?ref=demo-plot:AMA-0001"`.
@@ -136,13 +146,15 @@ pnpm --filter @ugaddress/field ios           # or: android (see note below)
 
 6. Press **Sync now** again or retry the same upload: the idempotency key makes the server return the existing change request, and no duplicate is created. The same guarantee is covered by automated tests (`RegisterApiIT.fieldCaptureStoresThePhotoAndRetriesDoNotDuplicate` and the field app's queue tests).
 
-On a physical phone or the Android emulator, `localhost` is not the computer: set `OIDC_PUBLIC_URL` in the root `.env` and the URLs in `apps/field/.env` to your computer's LAN IP (or `10.0.2.2` on the Android emulator), then `make down && make up`, so the token issuer matches what the backend accepts.
+On the Android emulator, keep `localhost` and forward the ports: `adb reverse tcp:3000 tcp:3000`, and the same for 3002, 8080 and 9000. On a physical phone, `localhost` is not the computer: set `OIDC_PUBLIC_URL`, `PORTAL_PUBLIC_URL` and `TILES_PUBLIC_URL` in the root `.env` and the URLs in `apps/field/.env` to your computer's LAN IP, then `make down && make up`, so the token issuer matches what the backend accepts and the map style points the phone at reachable hosts.
 
 ## Everyday commands
 
 | Command | What it does |
 |---|---|
 | `make up` / `make down` | start / stop the local environment |
+| `make basemap` | download and verify the self-hosted basemap (`BASEMAP_AREA=uganda` or `demo`) |
+| `make e2e` | Playwright map tests of portal and console against the running stack |
 | `make test` | backend `./mvnw verify` (unit, Testcontainers, Modulith, ArchUnit) and all JavaScript tests |
 | `make lint` | OpenAPI lint, ESLint and `tsc --noEmit` for every package |
 | `make generate` | regenerate the TypeScript API client after changing the contract |
@@ -156,6 +168,7 @@ CI ([.github/workflows](.github/workflows)) runs the same checks on every pull r
 - [CLAUDE.md](CLAUDE.md): stack, layout, conventions and commands at a glance
 - [docs/adr](docs/adr): architecture decision records
 - [docs/plan/bootstrap.md](docs/plan/bootstrap.md): bootstrap plan, pinned versions and deviations
+- [docs/plan/session-2.md](docs/plan/session-2.md): session 2 plan (maps, search, approvals, photo integrity, MFA, Android)
 - [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 ## License

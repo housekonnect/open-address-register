@@ -23,7 +23,7 @@ Kubernetes manifests · microservices · MinIO · Lombok · an ORM for spatial d
 | Objects | Record Store (S3-compatible) via AWS SDK v2 only; all config from env, so Garage can stand in |
 | Web | Next.js (App Router, standalone) · React · TypeScript strict · Tailwind · shadcn/ui · MapLibre GL JS · pnpm workspaces |
 | Field | React Native + Expo (dev build) · expo-sqlite offline queue · MapLibre React Native |
-| Tiles | Martin, serving vector tiles from PostGIS views in the `tiles` schema |
+| Tiles | Martin, serving vector tiles from PostGIS views in the `tiles` schema and the self-hosted Protomaps basemap (PMTiles from OpenStreetMap) |
 | Observability | Micrometer + OpenTelemetry |
 | Local | Docker Compose (`infra/compose`) |
 | CI | GitHub Actions · Renovate · Trivy · CodeQL · CycloneDX SBOM (Maven + npm) |
@@ -89,6 +89,8 @@ Cursor pagination, ETags, an `Idempotency-Key` header on every POST, RFC 9457 er
 | `make generate` | regenerate `packages/api-client` from the contract |
 | `make check-generated` | fail if generated code is stale |
 | `make db-reset` | recreate the register database with fixtures |
+| `make basemap` | download and verify the basemap into the `ugaddress-basemap` volume (`BASEMAP_AREA=uganda` or `demo`) |
+| `make e2e` | Playwright map tests of portal and console against the running stack |
 
 The backend needs JDK 25 (`sdk env` picks it up from `.sdkmanrc`) and a running Docker for jOOQ code generation and tests.
 
@@ -101,3 +103,5 @@ The backend needs JDK 25 (`sdk env` picks it up from `.sdkmanrc`) and a running 
 - Record Store 0.2 needs AWS SDK checksums `WHEN_REQUIRED` and chunked encoding off (ADR 0007).
 - Authentik issuers are per application and per host name. The backend accepts a list (`OIDC_ISSUERS`); the console reaches Authentik internally while keeping the public host name (`OIDC_INTERNAL_HOST`).
 - Martin publishes only views in the `tiles` schema; add a view there (never a residential entrance) to publish a layer.
+- Every map loads one style, `/map/style.json` on the portal (built by `packages/ui/src/lib/map-style.ts`). Fonts and sprites come from the `ugaddress-basemap` volume through the portal; no map request may leave the stack, and every map shows "© OpenStreetMap contributors".
+- maplibre-gl 6 must get its worker URL from the bundler (`setWorkerUrl` in `register-map.tsx`); otherwise the worker 404s after bundling and no tile loads.

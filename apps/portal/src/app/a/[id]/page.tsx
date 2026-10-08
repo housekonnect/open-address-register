@@ -7,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 import { QRCodeSVG } from "qrcode.react";
 import { AddressMap } from "@/components/address-map";
 import { resolveReference } from "@/lib/api";
+import { mapStyleUrl, portalUrl } from "@/lib/basemap";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,7 @@ export default async function AddressPage({ params }: { params: Promise<{ id: st
   const object = result.resolution.object;
   const address = object.address;
   const demonstration = object.nationalIdStatus === "demonstration";
-  const publicUrl = (process.env.PUBLIC_URL ?? "http://localhost:3000").replace(/\/+$/, "");
-  const tilesUrl = process.env.TILES_URL ?? "http://localhost:3002";
+  const publicUrl = portalUrl();
   const coordinates = object.location?.coordinates;
   const center: [number, number] | undefined =
     coordinates && coordinates.length === 2 ? [coordinates[0] ?? 0, coordinates[1] ?? 0] : undefined;
@@ -47,7 +47,7 @@ export default async function AddressPage({ params }: { params: Promise<{ id: st
               ))}
             </address>
           )}
-          {center && <AddressMap tilesUrl={tilesUrl} center={center} nationalId={object.nationalId} />}
+          {center && <AddressMap styleUrl={mapStyleUrl()} center={center} nationalId={object.nationalId} />}
           <Separator />
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
             {address?.postcode && (

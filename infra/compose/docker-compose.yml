@@ -170,6 +170,7 @@ services:
       DATABASE_URL: postgres://martin_reader:${MARTIN_READER_PASSWORD}@postgis:5432/register
     volumes:
       - ./martin/config.yaml:/config/config.yaml:ro
+      - basemap:/basemap:ro
     ports:
       - "${MARTIN_PORT:-3002}:3000"
     depends_on:
@@ -191,8 +192,15 @@ services:
     image: ugaddress/portal:local
     environment:
       API_URL: http://backend:8080
-      TILES_URL: http://localhost:${MARTIN_PORT:-3002}
+      # Base URL of Martin as the browser and the field app reach it; it goes into the map style.
+      TILES_PUBLIC_URL: ${TILES_PUBLIC_URL:-http://localhost:${MARTIN_PORT:-3002}}
       PUBLIC_URL: ${PORTAL_PUBLIC_URL}
+      # The one map style shared by the portal, the console and the field app (served by this portal).
+      MAP_STYLE_URL: ${PORTAL_PUBLIC_URL}/map/style.json
+      BASEMAP_DIR: /basemap
+    volumes:
+      # Glyphs and sprites of the basemap, served under /map (see infra/basemap/basemap.sh).
+      - basemap:/basemap:ro
     ports:
       - "${PORTAL_PORT:-3000}:3000"
     depends_on:
@@ -207,7 +215,8 @@ services:
     image: ugaddress/console:local
     environment:
       API_URL: http://backend:8080
-      TILES_URL: http://localhost:${MARTIN_PORT:-3002}
+      # The one map style shared by the portal, the console and the field app.
+      MAP_STYLE_URL: ${PORTAL_PUBLIC_URL}/map/style.json
       PUBLIC_URL: ${CONSOLE_PUBLIC_URL}
       OIDC_ISSUER: ${OIDC_PUBLIC_URL}/application/o/ugaddress-console/
       # The console's server talks to Authentik over the Compose network while keeping the public host name, so
@@ -231,3 +240,7 @@ volumes:
   authentik-data:
   authentik-certs:
   record-store-data:
+  # Filled and verified by `make basemap` (infra/basemap/basemap.sh); never part of the repository.
+  basemap:
+    external: true
+    name: ugaddress-basemap

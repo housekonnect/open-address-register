@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Builds the console from the monorepo root (context: repository root). Runtime configuration comes from the
-# environment (API_URL, TILES_URL, PUBLIC_URL, ...); no secrets are baked into the image.
+# environment (API_URL, MAP_STYLE_URL, PUBLIC_URL, ...); no secrets are baked into the image.
 FROM node:24.21.0-trixie-slim AS build
 ENV CI=true NEXT_TELEMETRY_DISABLED=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable

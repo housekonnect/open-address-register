@@ -1,15 +1,14 @@
-import { Camera, Map, UserLocation } from "@maplibre/maplibre-react-native";
+import { Camera, Map, UserLocation, type CameraRef } from "@maplibre/maplibre-react-native";
 import * as Crypto from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { config } from "../config";
 import { t, type MessageKey } from "../i18n";
-import { fieldMapStyle } from "../map/style";
 import type { CaptureKind, QueuedCapture } from "../queue/types";
-import { useTokens, type Tokens } from "../theme/tokens";
+import { useMapStyleUrl, useTokens, type Tokens } from "../theme/tokens";
 import type { useCaptureQueue } from "../useCaptureQueue";
 
 const KINDS: CaptureKind[] = ["building", "entrance", "landmark", "facility"];
@@ -32,7 +31,8 @@ function keepPhoto(uri: string): string {
 export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
   const tokens = useTokens();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const mapStyle = useMemo(() => fieldMapStyle(config.tilesUrl, tokens), [tokens]);
+  const mapStyleUrl = useMapStyleUrl(config.mapStyleUrl);
+  const camera = useRef<CameraRef>(null);
   const [kind, setKind] = useState<CaptureKind>("building");
   const [note, setNote] = useState("");
   const [photoUri, setPhotoUri] = useState<string>();
@@ -43,6 +43,13 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
     if (!permission.granted) return setMessage(t("capture.cameraDenied"));
     const result = await ImagePicker.launchCameraAsync({ quality: 0.6, exif: false });
     if (!result.canceled && result.assets[0]) setPhotoUri(keepPhoto(result.assets[0].uri));
+  }
+
+  async function showMyLocation() {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) return setMessage(t("capture.locationDenied"));
+    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    camera.current?.easeTo({ center: [position.coords.longitude, position.coords.latitude], zoom: 17, duration: 500 });
   }
 
   async function save() {
@@ -72,10 +79,14 @@ export function CaptureScreen({ queue, needsLogin, onSignOut }: Props) {
         </Pressable>
       </View>
       <View style={styles.map} accessibilityLabel={t("map.label")}>
-        <Map mapStyle={mapStyle} style={StyleSheet.absoluteFill} attribution={false} logo={false}>
-          <Camera initialViewState={{ center: config.defaultCenter, zoom: 16 }} trackUserLocation="default" />
+        <Map mapStyle={mapStyleUrl} style={StyleSheet.absoluteFill} attribution={false} logo={false}>
+          <Camera ref={camera} initialViewState={{ center: config.defaultCenter, zoom: 16 }} />
           <UserLocation />
         </Map>
+        <Pressable accessibilityRole="button" style={styles.mapButton} onPress={() => void showMyLocation()}>
+          <Text style={styles.mapButtonText}>{t("map.myLocation")}</Text>
+        </Pressable>
+        <Text style={styles.attribution}>{t("map.attribution")}</Text>
       </View>
       <Text style={styles.section}>{t("capture.title")}</Text>
       <Text style={styles.label}>{t("capture.kind")}</Text>
@@ -153,6 +164,9 @@ function createStyles(tokens: Tokens) {
     label: { color: tokens.mutedForeground },
     link: { color: tokens.primary, fontWeight: "600" },
     map: { height: 220, borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: tokens.border },
+    mapButton: { position: "absolute", top: 8, right: 8, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: tokens.card, borderWidth: 1, borderColor: tokens.border },
+    mapButtonText: { color: tokens.foreground, fontWeight: "600" },
+    attribution: { position: "absolute", bottom: 0, right: 0, paddingHorizontal: 4, fontSize: 10, color: tokens.foreground, backgroundColor: tokens.card },
     row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: tokens.border, backgroundColor: tokens.card },
     chipSelected: { backgroundColor: tokens.primary, borderColor: tokens.primary },

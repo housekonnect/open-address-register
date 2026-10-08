@@ -30,6 +30,8 @@ const en = {
   "queue.report": "{synced} uploaded, {remaining} waiting",
   "queue.needsLogin": "Please sign in again to upload.",
   "map.label": "Map around your position",
+  "map.myLocation": "My location",
+  "map.attribution": "© OpenStreetMap contributors",
 } as const;
 
 export type MessageKey = keyof typeof en;
