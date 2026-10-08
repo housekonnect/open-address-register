@@ -1,0 +1,233 @@
+# Local environment of the National Address Register. Start with `make up` (creates .env with random secrets first).
+#
+# Services: postgis, authentik (official setup: postgresql + server + worker), record-store, martin, backend,
+# console, portal. Every secret comes from .env; nothing secret is baked into an image.
+name: ugaddress
+
+x-authentik-env: &authentik-env
+  AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+  AUTHENTIK_POSTGRESQL__NAME: authentik
+  AUTHENTIK_POSTGRESQL__USER: authentik
+  AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS:?run make env}
+  AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?run make env}
+  AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:?run make env}
+  AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:?run make env}
+  AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL}
+  AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+  AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+  AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
+  # Read by the UGAddress blueprint (authentik/blueprints/ugaddress.yaml).
+  CONSOLE_PUBLIC_URL: ${CONSOLE_PUBLIC_URL}
+  PORTAL_PUBLIC_URL: ${PORTAL_PUBLIC_URL}
+  CONSOLE_CLIENT_SECRET: ${CONSOLE_CLIENT_SECRET:?run make env}
+  PORTAL_CLIENT_SECRET: ${PORTAL_CLIENT_SECRET:?run make env}
+  API_CLIENT_SECRET: ${API_CLIENT_SECRET:?run make env}
+  TEST_USER_PASSWORD: ${TEST_USER_PASSWORD:?run make env}
+
+services:
+  # --- Register database ---------------------------------------------------------------------------------------------
+  postgis:
+    image: postgis/postgis:18-3.6
+    # The official PostGIS image is amd64 only; Apple Silicon runs it under emulation (ADR 0004).
+    platform: linux/amd64
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run make env}
+      REGISTER_OWNER_PASSWORD: ${REGISTER_OWNER_PASSWORD:?run make env}
+      REGISTER_APP_PASSWORD: ${REGISTER_APP_PASSWORD:?run make env}
+      MARTIN_READER_PASSWORD: ${MARTIN_READER_PASSWORD:?run make env}
+    volumes:
+      - postgis-data:/var/lib/postgresql
+      - ./postgis/initdb/20-register.sh:/docker-entrypoint-initdb.d/20-register.sh:ro
+    ports:
+      - "${POSTGIS_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d register"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  # --- Identity: Authentik, following its official Compose setup -----------------------------------------------------
+  authentik-postgresql:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: ${AUTHENTIK_PG_PASS:?run make env}
+    volumes:
+      - authentik-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2026.8.3
+    command: server
+    environment: *authentik-env
+    depends_on:
+      authentik-postgresql:
+        condition: service_healthy
+    ports:
+      # Keep host and container port identical: the console reaches Authentik under the public URL's port.
+      - "${AUTHENTIK_PORT:-9000}:9000"
+    volumes:
+      - authentik-data:/data
+      - ./authentik/blueprints:/blueprints/ugaddress:ro
+    shm_size: 512mb
+    restart: unless-stopped
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2026.8.3
+    command: worker
+    environment: *authentik-env
+    # Deviation from the official file: no /var/run/docker.sock mount. Outposts are not used, and the socket would
+    # give the container root-equivalent access to the host (ADR 0006).
+    user: root
+    depends_on:
+      authentik-postgresql:
+        condition: service_healthy
+    volumes:
+      - authentik-data:/data
+      - authentik-certs:/certs
+      - ./authentik/blueprints:/blueprints/ugaddress:ro
+    shm_size: 512mb
+    restart: unless-stopped
+
+  # --- Object storage --------------------------------------------------------------------------------------------------
+  record-store:
+    image: ghcr.io/openelementslabs/record-store:0.2.1
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      RECORD_STORE_ROOT_ACCESS_KEY: ${RECORD_STORE_ROOT_ACCESS_KEY:?run make env}
+      RECORD_STORE_ROOT_SECRET_KEY: ${RECORD_STORE_ROOT_SECRET_KEY:?run make env}
+      RECORD_STORE_CREDENTIAL_MASTER_KEY: ${RECORD_STORE_CREDENTIAL_MASTER_KEY:?run make env}
+      RECORD_STORE_MANAGEMENT_SYSTEM_TOKEN: ${RECORD_STORE_MANAGEMENT_SYSTEM_TOKEN:?run make env}
+      RECORD_STORE_STORAGE_ENCRYPTION_ENABLED: "true"
+    volumes:
+      - record-store-data:/var/lib/record-store
+    ports:
+      - "${RECORD_STORE_S3_PORT:-7600}:7600"
+    healthcheck:
+      test: ["CMD", "record-store", "status", "--endpoint", "http://127.0.0.1:7601"]
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 6
+    restart: unless-stopped
+
+  # --- Backend ---------------------------------------------------------------------------------------------------------
+  backend:
+    build:
+      context: ../../backend/register-app
+    image: ugaddress/register-app:local
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      REGISTER_DB_URL: jdbc:postgresql://postgis:5432/register
+      REGISTER_OWNER_PASSWORD: ${REGISTER_OWNER_PASSWORD}
+      REGISTER_APP_PASSWORD: ${REGISTER_APP_PASSWORD}
+      REGISTER_FIXTURES_DIR: /fixtures
+      S3_ENDPOINT: http://record-store:7600
+      S3_REGION: ${S3_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${RECORD_STORE_ROOT_ACCESS_KEY}
+      S3_SECRET_KEY: ${RECORD_STORE_ROOT_SECRET_KEY}
+      # Keys are fetched over the Compose network; issuers are the public URLs clients use.
+      OIDC_JWK_SET_URI: http://authentik-server:9000/application/o/ugaddress-console/jwks/
+      OIDC_ISSUERS: >-
+        ${OIDC_PUBLIC_URL}/application/o/ugaddress-console/,${OIDC_PUBLIC_URL}/application/o/ugaddress-field/,${OIDC_PUBLIC_URL}/application/o/ugaddress-api/
+      OIDC_AUDIENCES: ugaddress-console,ugaddress-field,ugaddress-api
+    volumes:
+      - ../../db/fixtures:/fixtures:ro
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgis:
+        condition: service_healthy
+      record-store:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+    restart: unless-stopped
+
+  # --- Vector tiles ----------------------------------------------------------------------------------------------------
+  martin:
+    image: ghcr.io/maplibre/martin:1.16.1
+    command: ["--config", "/config/config.yaml"]
+    environment:
+      DATABASE_URL: postgres://martin_reader:${MARTIN_READER_PASSWORD}@postgis:5432/register
+    volumes:
+      - ./martin/config.yaml:/config/config.yaml:ro
+    ports:
+      - "${MARTIN_PORT:-3002}:3000"
+    depends_on:
+      # Migrations (run by the backend) create the tile views Martin publishes.
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # --- Web -------------------------------------------------------------------------------------------------------------
+  portal:
+    build:
+      context: ../..
+      dockerfile: apps/portal/Dockerfile
+    image: ugaddress/portal:local
+    environment:
+      API_URL: http://backend:8080
+      TILES_URL: http://localhost:${MARTIN_PORT:-3002}
+      PUBLIC_URL: ${PORTAL_PUBLIC_URL}
+    ports:
+      - "${PORTAL_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  console:
+    build:
+      context: ../..
+      dockerfile: apps/console/Dockerfile
+    image: ugaddress/console:local
+    environment:
+      API_URL: http://backend:8080
+      TILES_URL: http://localhost:${MARTIN_PORT:-3002}
+      PUBLIC_URL: ${CONSOLE_PUBLIC_URL}
+      OIDC_ISSUER: ${OIDC_PUBLIC_URL}/application/o/ugaddress-console/
+      # The console's server talks to Authentik over the Compose network while keeping the public host name, so
+      # tokens carry the same issuer as for the browser.
+      OIDC_INTERNAL_HOST: authentik-server
+      OIDC_CLIENT_ID: ugaddress-console
+      OIDC_CLIENT_SECRET: ${CONSOLE_CLIENT_SECRET}
+      SESSION_SECRET: ${CONSOLE_SESSION_SECRET:?run make env}
+    ports:
+      - "${CONSOLE_PORT:-3001}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+      authentik-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgis-data:
+  authentik-db:
+  authentik-data:
+  authentik-certs:
+  record-store-data:

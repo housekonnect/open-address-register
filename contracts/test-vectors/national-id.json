@@ -1,0 +1,233 @@
+{
+  "description": "Shared test vectors for the National ID library (ADR 0005). Read by backend/national-id and packages/national-id. Computed independently with the standard Damm quasigroup table.",
+  "format": {
+    "payloadDigits": 10,
+    "checkDigits": 1,
+    "displayGroups": [
+      4,
+      3,
+      4
+    ],
+    "demonstrationMarker": "DEMO"
+  },
+  "checkDigit": [
+    {
+      "payload": "0000000000",
+      "checkDigit": "0",
+      "id": "00000000000"
+    },
+    {
+      "payload": "4821093761",
+      "checkDigit": "8",
+      "id": "48210937618"
+    },
+    {
+      "payload": "9999999999",
+      "checkDigit": "2",
+      "id": "99999999992"
+    },
+    {
+      "payload": "1234567890",
+      "checkDigit": "6",
+      "id": "12345678906"
+    },
+    {
+      "payload": "4073241343",
+      "checkDigit": "5",
+      "id": "40732413435"
+    },
+    {
+      "payload": "6197065334",
+      "checkDigit": "2",
+      "id": "61970653342"
+    },
+    {
+      "payload": "7031846777",
+      "checkDigit": "9",
+      "id": "70318467779"
+    },
+    {
+      "payload": "0051715989",
+      "checkDigit": "0",
+      "id": "00517159890"
+    },
+    {
+      "payload": "1525011434",
+      "checkDigit": "2",
+      "id": "15250114342"
+    },
+    {
+      "payload": "2140310860",
+      "checkDigit": "0",
+      "id": "21403108600"
+    },
+    {
+      "payload": "1816106225",
+      "checkDigit": "0",
+      "id": "18161062250"
+    },
+    {
+      "payload": "6144519503",
+      "checkDigit": "3",
+      "id": "61445195033"
+    },
+    {
+      "payload": "3744203814",
+      "checkDigit": "5",
+      "id": "37442038145"
+    },
+    {
+      "payload": "0748395184",
+      "checkDigit": "1",
+      "id": "07483951841"
+    },
+    {
+      "payload": "4904081051",
+      "checkDigit": "7",
+      "id": "49040810517"
+    },
+    {
+      "payload": "0716735243",
+      "checkDigit": "5",
+      "id": "07167352435"
+    }
+  ],
+  "valid": [
+    {
+      "id": "00000000000",
+      "display": "0000 000 0000",
+      "demonstrationDisplay": "DEMO 0000 000 0000"
+    },
+    {
+      "id": "48210937618",
+      "display": "4821 093 7618",
+      "demonstrationDisplay": "DEMO 4821 093 7618"
+    },
+    {
+      "id": "99999999992",
+      "display": "9999 999 9992",
+      "demonstrationDisplay": "DEMO 9999 999 9992"
+    },
+    {
+      "id": "12345678906",
+      "display": "1234 567 8906",
+      "demonstrationDisplay": "DEMO 1234 567 8906"
+    },
+    {
+      "id": "40732413435",
+      "display": "4073 241 3435",
+      "demonstrationDisplay": "DEMO 4073 241 3435"
+    },
+    {
+      "id": "61970653342",
+      "display": "6197 065 3342",
+      "demonstrationDisplay": "DEMO 6197 065 3342"
+    },
+    {
+      "id": "70318467779",
+      "display": "7031 846 7779",
+      "demonstrationDisplay": "DEMO 7031 846 7779"
+    },
+    {
+      "id": "00517159890",
+      "display": "0051 715 9890",
+      "demonstrationDisplay": "DEMO 0051 715 9890"
+    },
+    {
+      "id": "15250114342",
+      "display": "1525 011 4342",
+      "demonstrationDisplay": "DEMO 1525 011 4342"
+    },
+    {
+      "id": "21403108600",
+      "display": "2140 310 8600",
+      "demonstrationDisplay": "DEMO 2140 310 8600"
+    },
+    {
+      "id": "18161062250",
+      "display": "1816 106 2250",
+      "demonstrationDisplay": "DEMO 1816 106 2250"
+    },
+    {
+      "id": "61445195033",
+      "display": "6144 519 5033",
+      "demonstrationDisplay": "DEMO 6144 519 5033"
+    },
+    {
+      "id": "37442038145",
+      "display": "3744 203 8145",
+      "demonstrationDisplay": "DEMO 3744 203 8145"
+    },
+    {
+      "id": "07483951841",
+      "display": "0748 395 1841",
+      "demonstrationDisplay": "DEMO 0748 395 1841"
+    },
+    {
+      "id": "49040810517",
+      "display": "4904 081 0517",
+      "demonstrationDisplay": "DEMO 4904 081 0517"
+    },
+    {
+      "id": "07167352435",
+      "display": "0716 735 2435",
+      "demonstrationDisplay": "DEMO 0716 735 2435"
+    }
+  ],
+  "invalid": [
+    {
+      "input": "48220937618",
+      "reason": "single-digit substitution"
+    },
+    {
+      "input": "48210397618",
+      "reason": "adjacent transposition"
+    },
+    {
+      "input": "4821093761",
+      "reason": "too short"
+    },
+    {
+      "input": "482109376180",
+      "reason": "too long"
+    },
+    {
+      "input": "4821A937618",
+      "reason": "non-digit character"
+    },
+    {
+      "input": "",
+      "reason": "empty"
+    },
+    {
+      "input": "4821.093.7615",
+      "reason": "unsupported separator"
+    }
+  ],
+  "parse": [
+    {
+      "input": "4821 093 7618",
+      "id": "48210937618"
+    },
+    {
+      "input": "48210937618",
+      "id": "48210937618"
+    },
+    {
+      "input": "4821-093-7618",
+      "id": "48210937618"
+    },
+    {
+      "input": "  4821 - 093  7618 ",
+      "id": "48210937618"
+    },
+    {
+      "input": "DEMO 4821 093 7618",
+      "id": "48210937618"
+    },
+    {
+      "input": "demo-48210937618",
+      "id": "48210937618"
+    }
+  ]
+}

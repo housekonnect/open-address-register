@@ -1,0 +1,48 @@
+name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.0.1
+        if: matrix.language == 'java-kotlin'
+        with:
+          distribution: temurin
+          java-version-file: .sdkmanrc
+          cache: maven
+          cache-dependency-path: backend/**/pom.xml
+      - uses: github/codeql-action/init@v4.38.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+      # Generated sources (jOOQ via Testcontainers, OpenAPI interfaces) are part of the compilation.
+      - name: Build backend
+        if: matrix.language == 'java-kotlin'
+        working-directory: backend
+        run: ./mvnw -B -ntp compile
+      - uses: github/codeql-action/analyze@v4.38.3
+        with:
+          category: /language:${{ matrix.language }}

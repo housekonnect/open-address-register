@@ -1,0 +1,71 @@
+# National Address Register backend. Every secret and endpoint comes from the environment (see .env.example).
+spring:
+  application:
+    name: register-app
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${REGISTER_DB_URL:jdbc:postgresql://localhost:5432/register}
+    # Runtime role: not the schema owner, so row-level security applies.
+    username: register_app
+    password: ${REGISTER_APP_PASSWORD}
+  flyway:
+    # Migrations run as the schema owner.
+    user: register_owner
+    password: ${REGISTER_OWNER_PASSWORD}
+    schemas: register
+    default-schema: register
+    locations: classpath:db/migration
+  jooq:
+    sql-dialect: postgres
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+  mvc:
+    problemdetails:
+      enabled: true
+
+register:
+  security:
+    # Signing keys: may use an internal host name. Issuers: the public URLs browsers and devices use.
+    jwk-set-uri: ${OIDC_JWK_SET_URI:http://localhost:9000/application/o/ugaddress-console/jwks/}
+    issuers: ${OIDC_ISSUERS:http://localhost:9000/application/o/ugaddress-console/,http://localhost:9000/application/o/ugaddress-field/}
+    audiences: ${OIDC_AUDIENCES:ugaddress-console,ugaddress-field}
+  storage:
+    endpoint: ${S3_ENDPOINT:http://localhost:7600}
+    region: ${S3_REGION:us-east-1}
+    bucket: ${S3_BUCKET:field-photos}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+
+db-scheduler:
+  polling-interval: 10s
+  delay-startup-until-context-ready: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLING:0.1}
+
+logging:
+  level:
+    root: INFO
+
+---
+# Local and demo environments: also load the synthetic fixtures from db/fixtures.
+spring:
+  config:
+    activate:
+      on-profile: demo
+  flyway:
+    locations: classpath:db/migration,filesystem:${REGISTER_FIXTURES_DIR:/fixtures}

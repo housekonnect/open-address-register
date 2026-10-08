@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits", "helpers:pinGitHubActionDigests"],
+  "enabledManagers": ["maven", "maven-wrapper", "npm", "dockerfile", "docker-compose", "github-actions", "sdkman", "custom.regex"],
+  "rangeStrategy": "pin",
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 10,
+  "packageRules": [
+    {
+      "description": "Keep the Java LTS identical across Maven, SDKMAN and Docker: never jump to a non-LTS release.",
+      "matchDepNames": ["java", "eclipse-temurin"],
+      "allowedVersions": "/^25[._]/"
+    },
+    {
+      "description": "Expo SDK pins react, react-native and the expo-* modules; upgrade them together.",
+      "matchFileNames": ["apps/field/package.json"],
+      "matchPackageNames": ["expo", "react", "react-native", "jest-expo", "/^expo-/", "/^@expo//"],
+      "groupName": "expo sdk"
+    },
+    {
+      "description": "Group Spring Boot and Spring Modulith.",
+      "matchPackageNames": ["org.springframework.boot:**", "org.springframework.modulith:**"],
+      "groupName": "spring"
+    },
+    {
+      "description": "OpenAPI Generator must stay identical in Maven and npm, and generated code must be regenerated.",
+      "matchPackageNames": ["org.openapitools:openapi-generator-maven-plugin", "@openapitools/openapi-generator-cli"],
+      "groupName": "openapi generator"
+    },
+    {
+      "description": "Group Next.js packages.",
+      "matchPackageNames": ["next", "eslint-config-next"],
+      "groupName": "next"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "OpenAPI Generator version used by the npm CLI wrapper.",
+      "managerFilePatterns": ["/openapitools\\.json$/"],
+      "matchStrings": ["\"version\": \"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "org.openapitools:openapi-generator-cli",
+      "datasourceTemplate": "maven"
+    }
+  ]
+}

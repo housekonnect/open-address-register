@@ -1,0 +1,2 @@
+# Keep identical to maven.compiler.release in backend/pom.xml and the eclipse-temurin tag in backend/register-app/Dockerfile.
+java=25.0.4-tem

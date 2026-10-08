@@ -1,0 +1,13 @@
+# Martin vector tile server. Connects as martin_reader, which can only read the views in the `tiles` schema
+# (see V1__register_schema.sql). Residential entrances are not part of any view (ADR 0009).
+listen_addresses: 0.0.0.0:3000
+cors: true
+postgres:
+  connection_string: ${DATABASE_URL}
+  default_srid: 4326
+  auto_publish:
+    from_schemas: [tiles]
+    functions: false
+    tables:
+      from_schemas: [tiles]
+      source_id_format: "{table}"

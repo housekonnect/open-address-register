@@ -1,0 +1,6 @@
+extends:
+  - recommended
+rules:
+  # The only server is the local development stack started by `make up`.
+  no-server-example.com: off
+  operation-4xx-problem-details-rfc7807: error
