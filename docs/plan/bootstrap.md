@@ -1,6 +1,6 @@
 # Bootstrap plan: National Address Register (UGAddress)
 
-Status: **approved 2026-10-08**; implementation in progress on branch `bootstrap`.
+Status: **implemented 2026-10-08** on branch `bootstrap` (see "Outcome" at the end).
 
 Decisions taken at approval:
 - Use the official `postgis/postgis:18-3.6` image (amd64 only). On Apple Silicon, Compose and Testcontainers run it under emulation with `platform: linux/amd64`.
@@ -35,14 +35,17 @@ Rule: use the **latest stable release** of every dependency. Where the latest re
 | db-scheduler-spring-boot-starter | 16.12.0 |
 | AWS SDK v2 BOM | 2.55.12 |
 | openapi-generator-maven-plugin | 7.26.0 |
-| jackson-databind-nullable | 0.2.12 |
+| jackson-databind-nullable | 0.2.12 (managed, not needed: `openApiNullable=false`) |
 | ArchUnit (junit5) | 1.5.1 |
 | JSpecify | 1.0.1 |
 | JUnit BOM | 6.1.3 |
 | AssertJ | 3.27.7 |
 | CycloneDX Maven plugin | 2.9.3 |
 | Micrometer / OpenTelemetry | Boot-managed (1.17.1 / 1.62.0) |
-| Plugins pinned in `pluginManagement` | compiler 3.16.0, surefire 3.6.0, failsafe 3.6.0, jar 3.5.1, resources 3.5.0, clean 3.5.0, install 3.2.0, deploy 3.2.0, site 3.22.0, enforcer 3.6.3, wrapper 3.3.4, build-helper 3.6.2 |
+| Jackson 3 (`tools.jackson:jackson-bom`) | 3.2.3 (Boot manages 3.1.5; security override) |
+| Tomcat embed | 11.0.26 (Boot manages 11.0.24; security override) |
+| db-scheduler | `db-scheduler-spring-boot-4-starter` 16.12.0 (the Boot 4 variant) |
+| Plugins pinned in `pluginManagement` | compiler 3.16.0, surefire 3.6.0, failsafe 3.6.0, jar 3.5.1, resources 3.5.0, clean 3.5.0, install 3.2.0, deploy 3.2.0, site 3.22.0, enforcer 3.6.3, wrapper 3.3.4, javadoc 3.12.0, dependency 3.11.0, build-helper 3.6.2, exec 3.6.4, spring-boot 4.1.1, openapi-generator 7.26.0, cyclonedx 2.9.3 |
 
 ### Web and field (npm)
 
@@ -62,7 +65,14 @@ Rule: use the **latest stable release** of every dependency. Where the latest re
 | vitest / jsdom / @testing-library/react | 5.0.3 / 30.1.2 / 16.3.3 |
 | @openapitools/openapi-generator-cli | 2.41.0 (runs generator 7.26.0, matching Maven) |
 | @redocly/cli | 2.60.0 |
-| @cyclonedx/cyclonedx-npm | 6.0.1 |
+| npm SBOM | `pnpm sbom --sbom-format cyclonedx` (pnpm 11.20.0); see Exceptions |
+| radix-ui / class-variance-authority / clsx / tailwind-merge / tw-animate-css | 1.7.0 / 0.7.1 / 2.1.1 / 3.7.0 / 1.4.0 |
+| lucide-react | 1.53.0 |
+| jose / undici (console session + OIDC fetch) | 6.2.12 / 8.11.2 |
+| expo-location, expo-dev-client, expo-status-bar, react-native-safe-area-context | 57.0.20, 57.0.19, 57.0.1, 5.7.0 (SDK 57) |
+| eslint-config-expo | 57.0.2 |
+| jest / @types/jest (field app) | 29.7.0 / 29.5.14 (see Exceptions) |
+| shell-quote (transitive, pnpm override) | 1.12.0 (security) |
 | expo | 57.0.27 (latest stable SDK) |
 | react-native / react (field) | 0.86.3 / 19.2.3 (pinned by Expo SDK 57) |
 | expo-sqlite, expo-auth-session, expo-image-picker, expo-network, expo-file-system, expo-crypto, expo-secure-store, expo-web-browser, jest-expo | SDK 57 versions (`~57.0.x`, as listed in Expo 57's `bundledNativeModules.json`) |
@@ -85,7 +95,10 @@ Rule: use the **latest stable release** of every dependency. Where the latest re
 1. **TypeScript 6.0.3, not 7.0.2.** typescript-eslint 8.71.1 supports only `typescript >=4.8.4 <6.1.0`. TS 7 is the native Go compiler and has no compatible linting API yet. Renovate will propose TS 7 once typescript-eslint supports it.
 2. **React Native 0.86.3 and React 19.2.3 in the field app.** Expo SDK 57 pins these. RN 0.87.1 and React 19.3.0 exist, but only Expo SDK 58 supports them, and SDK 58 is not released.
 3. **Flyway 13.10.0 overrides Boot's 12.4.0** (a major-version jump). If Boot 4.1.1's Flyway auto-configuration fails with 13.x, I'll fall back to 12.4.0 and record it.
-4. **Temurin 25.0.4+7, not the 25.0.4.1 respin.** SDKMAN has only `25.0.4-tem`, and the brief requires the identical build in Maven, SDKMAN and Docker.
+4. **Jest 29.7.0 in the field app, not 30.5.2.** jest-expo 57 is built on Jest 29 (`babel-jest ^29`, `jest-environment-jsdom ^29`).
+5. **npm SBOM via `pnpm sbom`, not `@cyclonedx/cyclonedx-npm`.** cyclonedx-npm reads npm's own dependency tree and produced an empty SBOM (0 components) for this pnpm workspace; `pnpm sbom --sbom-format cyclonedx` produces CycloneDX 1.7 SBOMs with all components.
+6. **Security overrides of Spring Boot-managed versions:** Tomcat 11.0.26 and Jackson 3.2.3 (Trivy: CVE-2026-65182 and others in Tomcat 11.0.24; several CVEs in Jackson 3.1.5). The full test suite passes with them.
+7. **Temurin 25.0.4+7, not the 25.0.4.1 respin.** SDKMAN has only `25.0.4-tem`, and the brief requires the identical build in Maven, SDKMAN and Docker.
 
 ## 2. Architecture decisions within the brief
 
@@ -173,4 +186,15 @@ Rule: use the **latest stable release** of every dependency. Where the latest re
 - Two extra tables: `idempotency_key` and db-scheduler's `scheduled_tasks`.
 - No Docker socket mount on the Authentik worker.
 - Resumable photo uploads are deferred; the slice sends one multipart upload per capture.
+- jOOQ code generation uses a small single-file program (`backend/register-app/codegen/JooqCodegen.java`) run by exec-maven-plugin, not the Testcontainers jOOQ Maven plugin (0.0.4, last released April 2024, built for Testcontainers 1.x).
+- A field capture is stored as a change request; the capture id equals the change request id (no separate capture table yet).
+- The API audience `ugaddress-api` exists as its own Authentik provider (client credentials, partner scope). Authentik issues `aud` = client id, so the backend accepts the console, field and API client ids as audiences and one issuer per application.
+- Map tiles are the register's own Martin layers only; there is no external base map.
 - The version exceptions in section 1.
+
+## 6. Outcome
+
+- **Backend:** `./mvnw verify` passes: 2,047 national-ID tests, Modulith verification and 14 ArchUnit rules, and 19 Testcontainers integration tests against real PostGIS and Record Store (row-level security, history, concurrent audit chain, constraints, resolve, ETags, 501s, idempotent change requests, field captures with photos, four-eyes).
+- **JavaScript:** lint, `tsc --noEmit` and tests pass for every package (2,048 national-ID tests in TypeScript, API client, UI, portal, console, field queue); portal and console build as standalone images.
+- **Slice, verified by hand against the running Compose stack:** portal lookup and address page; console login through Authentik and correction submission with an audit event (retry returns the same change request); field captures with a real PKCE token, photo stored in Record Store, retry without duplicate; partner token sees residential entrance coordinates, anonymous callers do not. The field app's native iOS development build compiles and starts on the simulator; the interactive on-device steps (tapping through login and capture) were not automated.
+- **Findings fixed on the way:** Authentik 2026.8 needs explicit `grant_types` per provider; Record Store 0.2.1 rejects the AWS SDK's flexible checksums and aws-chunked uploads (client configured accordingly, ADR 0007); expo-auth-session discovery needs the issuer without its trailing slash; Trivy findings in Tomcat, Jackson and shell-quote.

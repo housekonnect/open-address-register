@@ -91,3 +91,13 @@ Cursor pagination, ETags, an `Idempotency-Key` header on every POST, RFC 9457 er
 | `make db-reset` | recreate the register database with fixtures |
 
 The backend needs JDK 25 (`sdk env` picks it up from `.sdkmanrc`) and a running Docker for jOOQ code generation and tests.
+
+## Gotchas
+
+- **Never overwrite the root `.env`.** Its secrets initialised the Docker volumes. Write per-app env files (e.g. `apps/field/.env`) with absolute paths.
+- Generated code lives outside the module packages so Spring Modulith ignores it: OpenAPI interfaces in `org.ugaddress.api.v1` (Maven build), jOOQ in `org.ugaddress.db.generated` (`codegen/JooqCodegen.java`, skipped when migrations are unchanged).
+- TypeScript stays on 6.0.x until typescript-eslint supports 7; the field app follows Expo SDK 57's pins (React 19.2, React Native 0.86, Jest 29). Check with `pnpm exec expo install --check` in `apps/field`.
+- pnpm 11 blocks dependency install scripts; decide each one in `pnpm-workspace.yaml` → `allowBuilds` (currently all denied; their prebuilt binaries suffice).
+- Record Store 0.2 needs AWS SDK checksums `WHEN_REQUIRED` and chunked encoding off (ADR 0007).
+- Authentik issuers are per application and per host name. The backend accepts a list (`OIDC_ISSUERS`); the console reaches Authentik internally while keeping the public host name (`OIDC_INTERNAL_HOST`).
+- Martin publishes only views in the `tiles` schema; add a view there (never a residential entrance) to publish a layer.
