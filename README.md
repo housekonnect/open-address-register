@@ -68,6 +68,17 @@ grep TEST_USER_PASSWORD .env
 
 The Authentik administrator is `akadmin`, password `AUTHENTIK_BOOTSTRAP_PASSWORD` in `.env`.
 
+#### Second factor (MFA)
+
+`editor`, `approver` and `steward` (groups `custodian-editor`, `custodian-approver`, `steward-admin`) must use a second factor. Their login runs through the flow `ugaddress-authentication`, defined in the same blueprint; there is no setting that turns this off. `verifier` signs in with the password only.
+
+On the first login after the password, authentik asks which second factor to set up:
+
+- **TOTP Device**: scan the QR code with any authenticator app (for example Aegis, FreeOTP or Google Authenticator), then type the six-digit code. Later logins ask for a current code.
+- **WebAuthn device**: a passkey or security key (YubiKey, Windows Hello, Touch ID, Android). Browsers allow WebAuthn on `http://localhost`; on any other host name authentik must be served over HTTPS.
+
+Lost the device, or want to start over? As `akadmin`, open http://localhost:9000/if/admin/ → **Directory → Users → (user) → MFA authenticators** and delete the device; the next login enrols a new one. The Playwright console tests do exactly this through authentik's API (with `AUTHENTIK_BOOTSTRAP_TOKEN`) and enrol a fresh TOTP device on every run.
+
 ## The end-to-end slice
 
 The fixtures ([db/fixtures/R__demo_area.sql](db/fixtures/R__demo_area.sql)) describe an invented district with two parishes, four streets and 50 buildings, each with an entrance and a `demo-plot` alias. Every ID is a **demonstration** ID and shows a `DEMO` marker. There is no personal data.
