@@ -22,6 +22,7 @@
 
     <modules>
         <module>national-id</module>
+        <module>register-app</module>
     </modules>
 
     <properties>
@@ -161,7 +162,7 @@
             </dependency>
             <dependency>
                 <groupId>com.github.kagkarlsson</groupId>
-                <artifactId>db-scheduler-spring-boot-starter</artifactId>
+                <artifactId>db-scheduler-spring-boot-4-starter</artifactId>
                 <version>${db-scheduler.version}</version>
             </dependency>
             <dependency>

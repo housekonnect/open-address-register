@@ -28,6 +28,7 @@ Chosen option: **Record Store**, accessed **only through the S3 API via AWS SDK 
 
 - Endpoint, region, bucket and credentials come from environment variables (`S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`), with path-style addressing, so Garage can stand in without code changes.
 - Record Store publishes a multi-arch image (`ghcr.io/openelementslabs/record-store`, pinned to 0.2.1). A source build and the Garage fallback were therefore **not** needed.
+- Record Store 0.2.1 implements a subset of S3. It answers `NotImplemented` to the AWS SDK's default flexible checksums and to `aws-chunked` streaming uploads, so the client sets checksum calculation and validation to `WHEN_REQUIRED` and disables chunked encoding. Both settings are harmless with other S3 stores. An integration test runs against the real Record Store image.
 - Clients never talk to the object store directly; photos are uploaded through the register API, which stores them and records the object key on the change request.
 
 ### Consequences
