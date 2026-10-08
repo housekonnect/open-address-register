@@ -36,3 +36,36 @@ Chosen option: **Record Store**, accessed **only through the S3 API via AWS SDK 
 - Good: storage is replaceable; only S3 semantics are assumed.
 - Good: versioning and integrity features of Record Store are available for evidence.
 - Bad: Record Store is young (0.x); upgrades must be tested. Garage remains the documented fallback.
+
+## Compatibility spike (2026-10-08)
+
+Input for the readiness gate. Nothing in the implementation changed: the stack stays on Record Store 0.2.1 with the client settings above.
+
+**Which release.** 0.2.1 (2026-09-25) is still the newest Record Store release, and GHCR has no newer image: `latest` is 0.2.1. The 27 commits on `main` since then are dependency and documentation updates. The spike therefore tested 0.2.1.
+
+**Method.** A throwaway `ghcr.io/openelementslabs/record-store:0.2.1` container on spare ports (never the stack's volume), driven by AWS SDK for Java v2 2.55.12 with the `url-connection-client`, exactly as the backend uses it. Every operation ran under four client configurations.
+
+| Operation | Project settings (checksums `WHEN_REQUIRED`, chunked off) | SDK defaults (`WHEN_SUPPORTED`, chunked on) | Default checksums only (`WHEN_SUPPORTED`, chunked off) | Chunked only (`WHEN_REQUIRED`, chunked on) |
+|---|---|---|---|---|
+| PutObject, 1 KiB | OK | **501** "AWS streaming payloads (aws-chunked) … are not implemented" | OK | **501** (same) |
+| GetObject, bytes compared | OK | n/a (nothing stored) | OK | n/a |
+| PutObject with `checksumAlgorithm(SHA256)` | OK | **501** | OK | **501** |
+| Multipart upload: 5 MiB + 1 KiB parts, completed and read back | OK, bytes identical | **501** | OK, bytes identical | **501** |
+
+With the project settings, client-supplied checksums are verified:
+
+| Request | Result |
+|---|---|
+| PutObject with a wrong `x-amz-checksum-sha256` | **400** "The Content-MD5 or checksum did not match the received data"; nothing stored |
+| PutObject with a wrong `Content-MD5` | **400** (same); nothing stored |
+| PutObject with a correct `x-amz-checksum-sha256` | stored; the response does not echo the checksum header |
+
+**Findings.**
+
+1. **Multipart uploads work** in 0.2.1. Resumable photo uploads can use them, as long as chunked encoding stays off.
+2. **The SDK's default checksums work.** With chunked encoding off, `WHEN_SUPPORTED` request and response checksums succeed. This corrects the statement above: only `aws-chunked` streaming payloads (including trailing checksums) are unsupported. Of the two client settings, only `chunkedEncodingEnabled(false)` is needed for Record Store; `WHEN_REQUIRED` is harmless and stays.
+3. **aws-chunked is not implemented** (501, with a clear message). Every client that writes to the store must send plain, non-chunked payloads. The backend does; any other S3 client added later must be configured the same way.
+4. **Record Store verifies supplied checksums** (SHA-256 and MD5) and rejects mismatches without storing anything. A later option, not implemented: send the device-side SHA-256 as `x-amz-checksum-sha256`, so the store itself rejects a corrupted upload before the backend re-hashes it.
+
+**Readiness gate.** For the register's use (single PUT, GET, multipart, integrity) Record Store 0.2.1 passes, on one condition: chunked encoding off. Re-run this spike before adopting any later release.
+

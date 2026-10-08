@@ -206,6 +206,13 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      # The runtime image has no curl or wget; Node's fetch does the request.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
     restart: unless-stopped
 
   console:
@@ -232,6 +239,13 @@ services:
         condition: service_healthy
       authentik-server:
         condition: service_healthy
+    healthcheck:
+      # The runtime image has no curl or wget; Node's fetch does the request.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
     restart: unless-stopped
 
 volumes:
