@@ -1,0 +1,24 @@
+{
+  "name": "ugaddress",
+  "private": true,
+  "description": "National Address Register: JavaScript/TypeScript workspace root.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "lint": "pnpm -r --parallel lint",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "generate": "pnpm --filter @ugaddress/api-client generate",
+    "contracts:lint": "redocly lint contracts/register.v1.yaml",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.60.0",
+    "prettier": "3.9.9"
+  }
+}
