@@ -10,10 +10,10 @@
   },
   "home": {
     "title": "Find an address",
-    "intro": "Enter the national address ID from a plate or document, or a reference from another register such as demo-plot:AMA-0001.",
-    "label": "National address ID or reference",
-    "placeholder": "e.g. 9526 184 5754",
-    "submit": "Look up",
+    "intro": "Search for an address, a street or a place, or enter the national address ID from a plate or document, or a reference from another register such as demo-plot:AMA-0001.",
+    "label": "Address, street, place, national address ID or reference",
+    "placeholder": "e.g. 5 Amani Avenue or 9526 184 5754",
+    "submit": "Search",
     "hint": {
       "checkDigit": "This ID has a typo: the last digit does not match. Please check each digit.",
       "format": "A national address ID has 11 digits.",
@@ -63,5 +63,14 @@
     "endpoints": "Endpoints",
     "implemented": "available",
     "planned": "planned"
+  },
+  "search": {
+    "title": "Search results for “{q}”",
+    "empty": "Nothing in the register matches “{q}”. Check the spelling, or search for the street only.",
+    "invalid": "Please enter at least two characters.",
+    "unavailable": "The register is not reachable right now. Please try again shortly.",
+    "more": "More results",
+    "back": "New search",
+    "demonstration": "Demonstration data"
   }
 }

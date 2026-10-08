@@ -174,13 +174,9 @@ class RegisterApiIT extends AbstractIntegrationTest {
 
     @Test
     void contractedButUnimplementedOperationsReturn501() throws Exception {
-        mvc.perform(get("/v1/search").param("q", "Amani"))
+        mvc.perform(get("/v1/changes").param("since", "2026-01-01T00:00:00Z"))
             .andExpect(status().isNotImplemented())
             .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON));
-        mvc.perform(get("/v1/reverse").param("lat", "0.35").param("lon", "32.59"))
-            .andExpect(status().isNotImplemented());
-        mvc.perform(get("/v1/changes").param("since", "2026-01-01T00:00:00Z"))
-            .andExpect(status().isNotImplemented());
         mvc.perform(get("/v1/field/assignments").with(user("verifier-1", "demo-city", Role.FIELD_VERIFIER)))
             .andExpect(status().isNotImplemented());
     }

@@ -75,7 +75,13 @@ paths:
     get:
       operationId: search
       tags: [resolve]
-      summary: Free-text address search (not implemented yet)
+      summary: Free-text address search
+      description: |
+        Searches street names, addresses (`5 Amani Avenue`), building, landmark and facility names, national IDs and
+        aliases. Matching ignores case and accents and tolerates typos. A query that is a valid national ID in any
+        display form (`4821 093 7618`, `4821-093-7618`, `DEMO 4821 093 7618`) returns that object first. Results are
+        ranked best match first; residential entrance coordinates are omitted unless the caller holds
+        `register:partner`.
       parameters:
         - name: q
           in: query
@@ -102,7 +108,15 @@ paths:
     get:
       operationId: reverse
       tags: [resolve]
-      summary: Nearest addresses to a point (not implemented yet)
+      summary: What is addressed near a point
+      description: |
+        Returns what lies within `radius` metres of the point, nearest first.
+
+        - Public callers get **street level** only: the nearest streets with their postcode and admin units, and a
+          distance rounded to 10 m. No house number, national ID or object is returned, so the endpoint cannot be
+          used to locate a particular home.
+        - Callers with `register:partner` get the nearest addressable objects with their full address and entrance
+          coordinates, including residential entrances.
       parameters:
         - name: lat
           in: query
@@ -120,15 +134,25 @@ paths:
             format: double
             minimum: -180
             maximum: 180
+        - name: radius
+          in: query
+          required: false
+          description: Search radius in metres.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 500
+            default: 50
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: Addresses ordered by distance.
+          description: Matches ordered by distance.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AddressPage"
+                $ref: "#/components/schemas/ReversePage"
         "400":
           $ref: "#/components/responses/BadRequest"
         "501":
@@ -614,6 +638,44 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AddressableObject"
+        nextCursor:
+          type: [string, "null"]
+
+    ReverseMatch:
+      type: object
+      description: |
+        One match of a reverse lookup. `precision` is `street` for public callers (no `object`) and `object` for
+        partners.
+      required: [precision, distanceMeters, thoroughfare, adminUnits]
+      properties:
+        precision:
+          type: string
+          enum: [street, object]
+        distanceMeters:
+          type: number
+          format: double
+          description: Distance from the point; rounded to 10 m at street precision.
+        thoroughfare:
+          $ref: "#/components/schemas/ThoroughfareRef"
+        postcode:
+          type: [string, "null"]
+        adminUnits:
+          type: array
+          description: Administrative units from the smallest to the largest.
+          items:
+            $ref: "#/components/schemas/AdminUnitRef"
+        object:
+          description: The addressed object; only at `object` precision (partners).
+          $ref: "#/components/schemas/AddressableObject"
+
+    ReversePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReverseMatch"
         nextCursor:
           type: [string, "null"]
 

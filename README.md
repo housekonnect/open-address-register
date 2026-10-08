@@ -103,13 +103,23 @@ regsql "select register.verify_audit_chain() is null as audit_chain_intact"
 
 Expected: 42 buildings, 8 facilities and 50 entrances, all `demonstration`; the audit chain is intact.
 
-### 3. Portal: resolve an ID
+### 3. Portal: search and resolve an ID
 
 1. Open http://localhost:3000 and type `9526 184 5754` (spaces, dashes or the `DEMO` prefix are all accepted). Change one digit to see the check digit catch the typo before any request is made.
-2. Press **Look up**. The address page shows the address lines, the `DEMO` ID, a map of the address on the self-hosted OpenStreetMap basemap with the building highlighted, and a QR code that links back to the page.
+2. Press **Search**. A valid ID or reference opens its address page directly. It shows the address lines, the `DEMO` ID, a map of the address on the self-hosted OpenStreetMap basemap with the building highlighted, and a QR code that links back to the page.
 3. Residential entrance coordinates are not shown publicly; the API returns them only to callers with the `register:partner` scope.
 
-The same lookup through the API: `curl "http://localhost:8080/v1/resolve?ref=demo-plot:AMA-0001"`.
+4. Search for free text instead, e.g. `amani avnue` (typo included) or `Health Centre`: the results list streets, addresses and places, best match first.
+
+The same through the API:
+
+```sh
+curl "http://localhost:8080/v1/resolve?ref=demo-plot:AMA-0001"
+curl "http://localhost:8080/v1/search?q=jacarnda%20close"        # full-text + trigram, typo-tolerant, cursor-paginated
+curl "http://localhost:8080/v1/reverse?lat=0.3502&lon=32.5935"   # public: street level only
+```
+
+Reverse lookups return the nearest street (with postcode and admin units, distance rounded to 10 m) to the public, and the nearest addressed objects with their entrance coordinates to partners (`register:partner`).
 
 ### 4. Console: submit a correction
 

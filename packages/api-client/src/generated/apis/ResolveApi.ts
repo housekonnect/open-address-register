@@ -28,6 +28,11 @@ import {
   ResolutionFromJSON,
   ResolutionToJSON,
 } from "../models/Resolution";
+import {
+  type ReversePage,
+  ReversePageFromJSON,
+  ReversePageToJSON,
+} from "../models/ReversePage";
 
 export interface ResolveRequest {
   /**
@@ -49,6 +54,10 @@ export interface ReverseRequest {
    *
    */
   lon: number;
+  /**
+   * Search radius in metres.
+   */
+  radius?: number;
   /**
    * Opaque cursor from a previous page's `nextCursor`.
    */
@@ -119,6 +128,7 @@ export interface ResolveApiInterface {
    * Creates request options for reverse without sending the request
    * @param {number} lat
    * @param {number} lon
+   * @param {number} [radius] Search radius in metres.
    * @param {string} [cursor] Opaque cursor from a previous page\&#39;s &#x60;nextCursor&#x60;.
    * @param {number} [limit]
    * @throws {RequiredError}
@@ -129,10 +139,11 @@ export interface ResolveApiInterface {
   ): Promise<runtime.RequestOpts>;
 
   /**
-   *
-   * @summary Nearest addresses to a point (not implemented yet)
+   * Returns what lies within `radius` metres of the point, nearest first.  - Public callers get **street level** only: the nearest streets with their postcode and admin units, and a   distance rounded to 10 m. No house number, national ID or object is returned, so the endpoint cannot be   used to locate a particular home. - Callers with `register:partner` get the nearest addressable objects with their full address and entrance   coordinates, including residential entrances.
+   * @summary What is addressed near a point
    * @param {number} lat
    * @param {number} lon
+   * @param {number} [radius] Search radius in metres.
    * @param {string} [cursor] Opaque cursor from a previous page\&#39;s &#x60;nextCursor&#x60;.
    * @param {number} [limit]
    * @param {*} [options] Override http request option.
@@ -142,15 +153,16 @@ export interface ResolveApiInterface {
   reverseRaw(
     requestParameters: ReverseRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<AddressPage>>;
+  ): Promise<runtime.ApiResponse<ReversePage>>;
 
   /**
-   * Nearest addresses to a point (not implemented yet)
+   * Returns what lies within `radius` metres of the point, nearest first.  - Public callers get **street level** only: the nearest streets with their postcode and admin units, and a   distance rounded to 10 m. No house number, national ID or object is returned, so the endpoint cannot be   used to locate a particular home. - Callers with `register:partner` get the nearest addressable objects with their full address and entrance   coordinates, including residential entrances.
+   * What is addressed near a point
    */
   reverse(
     requestParameters: ReverseRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<AddressPage>;
+  ): Promise<ReversePage>;
 
   /**
    * Creates request options for search without sending the request
@@ -165,8 +177,8 @@ export interface ResolveApiInterface {
   ): Promise<runtime.RequestOpts>;
 
   /**
-   *
-   * @summary Free-text address search (not implemented yet)
+   * Searches street names, addresses (`5 Amani Avenue`), building, landmark and facility names, national IDs and aliases. Matching ignores case and accents and tolerates typos. A query that is a valid national ID in any display form (`4821 093 7618`, `4821-093-7618`, `DEMO 4821 093 7618`) returns that object first. Results are ranked best match first; residential entrance coordinates are omitted unless the caller holds `register:partner`.
+   * @summary Free-text address search
    * @param {string} q
    * @param {string} [cursor] Opaque cursor from a previous page\&#39;s &#x60;nextCursor&#x60;.
    * @param {number} [limit]
@@ -180,7 +192,8 @@ export interface ResolveApiInterface {
   ): Promise<runtime.ApiResponse<AddressPage>>;
 
   /**
-   * Free-text address search (not implemented yet)
+   * Searches street names, addresses (`5 Amani Avenue`), building, landmark and facility names, national IDs and aliases. Matching ignores case and accents and tolerates typos. A query that is a valid national ID in any display form (`4821 093 7618`, `4821-093-7618`, `DEMO 4821 093 7618`) returns that object first. Results are ranked best match first; residential entrance coordinates are omitted unless the caller holds `register:partner`.
+   * Free-text address search
    */
   search(
     requestParameters: SearchRequest,
@@ -296,6 +309,10 @@ export class ResolveApi extends runtime.BaseAPI implements ResolveApiInterface {
       queryParameters["lon"] = requestParameters["lon"];
     }
 
+    if (requestParameters["radius"] != null) {
+      queryParameters["radius"] = requestParameters["radius"];
+    }
+
     if (requestParameters["cursor"] != null) {
       queryParameters["cursor"] = requestParameters["cursor"];
     }
@@ -326,27 +343,29 @@ export class ResolveApi extends runtime.BaseAPI implements ResolveApiInterface {
   }
 
   /**
-   * Nearest addresses to a point (not implemented yet)
+   * Returns what lies within `radius` metres of the point, nearest first.  - Public callers get **street level** only: the nearest streets with their postcode and admin units, and a   distance rounded to 10 m. No house number, national ID or object is returned, so the endpoint cannot be   used to locate a particular home. - Callers with `register:partner` get the nearest addressable objects with their full address and entrance   coordinates, including residential entrances.
+   * What is addressed near a point
    */
   async reverseRaw(
     requestParameters: ReverseRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<AddressPage>> {
+  ): Promise<runtime.ApiResponse<ReversePage>> {
     const requestOptions = await this.reverseRequestOpts(requestParameters);
     const response = await this.request(requestOptions, initOverrides);
 
     return new runtime.JSONApiResponse(response, (jsonValue) =>
-      AddressPageFromJSON(jsonValue),
+      ReversePageFromJSON(jsonValue),
     );
   }
 
   /**
-   * Nearest addresses to a point (not implemented yet)
+   * Returns what lies within `radius` metres of the point, nearest first.  - Public callers get **street level** only: the nearest streets with their postcode and admin units, and a   distance rounded to 10 m. No house number, national ID or object is returned, so the endpoint cannot be   used to locate a particular home. - Callers with `register:partner` get the nearest addressable objects with their full address and entrance   coordinates, including residential entrances.
+   * What is addressed near a point
    */
   async reverse(
     requestParameters: ReverseRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<AddressPage> {
+  ): Promise<ReversePage> {
     const response = await this.reverseRaw(requestParameters, initOverrides);
     return await response.value();
   }
@@ -400,7 +419,8 @@ export class ResolveApi extends runtime.BaseAPI implements ResolveApiInterface {
   }
 
   /**
-   * Free-text address search (not implemented yet)
+   * Searches street names, addresses (`5 Amani Avenue`), building, landmark and facility names, national IDs and aliases. Matching ignores case and accents and tolerates typos. A query that is a valid national ID in any display form (`4821 093 7618`, `4821-093-7618`, `DEMO 4821 093 7618`) returns that object first. Results are ranked best match first; residential entrance coordinates are omitted unless the caller holds `register:partner`.
+   * Free-text address search
    */
   async searchRaw(
     requestParameters: SearchRequest,
@@ -415,7 +435,8 @@ export class ResolveApi extends runtime.BaseAPI implements ResolveApiInterface {
   }
 
   /**
-   * Free-text address search (not implemented yet)
+   * Searches street names, addresses (`5 Amani Avenue`), building, landmark and facility names, national IDs and aliases. Matching ignores case and accents and tolerates typos. A query that is a valid national ID in any display form (`4821 093 7618`, `4821-093-7618`, `DEMO 4821 093 7618`) returns that object first. Results are ranked best match first; residential entrance coordinates are omitted unless the caller holds `register:partner`.
+   * Free-text address search
    */
   async search(
     requestParameters: SearchRequest,

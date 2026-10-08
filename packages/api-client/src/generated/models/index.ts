@@ -25,4 +25,6 @@ export * from "./ObjectKind";
 export * from "./Point";
 export * from "./Problem";
 export * from "./Resolution";
+export * from "./ReverseMatch";
+export * from "./ReversePage";
 export * from "./ThoroughfareRef";

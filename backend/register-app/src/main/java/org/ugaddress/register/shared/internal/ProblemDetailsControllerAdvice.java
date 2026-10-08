@@ -1,6 +1,9 @@
 package org.ugaddress.register.shared.internal;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import java.sql.SQLException;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +40,23 @@ class ProblemDetailsControllerAdvice extends ResponseEntityExceptionHandler {
         final ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
         problem.setTitle("Invalid national ID");
         return problem;
+    }
+
+    /** Query and header parameters that break the contract's constraints (e.g. {@code limit=0}). */
+    @ExceptionHandler(ConstraintViolationException.class)
+    ProblemDetail handleConstraintViolation(final ConstraintViolationException exception) {
+        final String detail = exception.getConstraintViolations().stream()
+            .map(ProblemDetailsControllerAdvice::describe)
+            .sorted()
+            .collect(Collectors.joining("; "));
+        final ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
+        problem.setTitle("Invalid request parameter");
+        return problem;
+    }
+
+    private static String describe(final ConstraintViolation<?> violation) {
+        final String path = violation.getPropertyPath().toString();
+        return path.substring(path.lastIndexOf('.') + 1) + ": " + violation.getMessage();
     }
 
     @ExceptionHandler(DataAccessException.class)

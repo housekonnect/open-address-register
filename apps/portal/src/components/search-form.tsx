@@ -9,8 +9,8 @@ import { useId, useState } from "react";
 import { classifyReference } from "@/lib/reference";
 
 /**
- * Search box. Validates national IDs as the user types (the Damm check digit catches typos before any request),
- * and works without JavaScript as a plain GET form.
+ * Search box for addresses, streets, places, national IDs and references. Validates national IDs as the user types
+ * (the Damm check digit catches typos before any request), and works without JavaScript as a plain GET form.
  */
 export function SearchForm({ initialValue = "" }: { initialValue?: string }) {
   const t = useTranslations("home");
@@ -27,12 +27,12 @@ export function SearchForm({ initialValue = "" }: { initialValue?: string }) {
 
   const invalid = reference.kind === "invalid" && hint !== undefined;
   return (
-    <form action="/lookup" method="get" className="flex flex-col gap-2">
+    <form action="/search" method="get" className="flex flex-col gap-2">
       <Label htmlFor={inputId}>{t("label")}</Label>
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           id={inputId}
-          name="ref"
+          name="q"
           value={value}
           onChange={(event) => setValue(event.target.value)}
           placeholder={t("placeholder")}
@@ -41,9 +41,11 @@ export function SearchForm({ initialValue = "" }: { initialValue?: string }) {
           aria-invalid={invalid}
           aria-describedby={hint ? hintId : undefined}
           className="font-mono text-lg"
+          minLength={2}
+          maxLength={200}
           required
         />
-        <Button type="submit" size="lg" disabled={reference.kind === "empty" || invalid}>
+        <Button type="submit" size="lg" disabled={value.trim().length < 2 || invalid}>
           <Search aria-hidden />
           {t("submit")}
         </Button>

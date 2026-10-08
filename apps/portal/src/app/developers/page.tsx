@@ -6,8 +6,8 @@ import { getTranslations } from "next-intl/server";
 
 const ENDPOINTS: { method: string; path: string; implemented: boolean }[] = [
   { method: "GET", path: "/v1/resolve?ref=", implemented: true },
-  { method: "GET", path: "/v1/search?q=", implemented: false },
-  { method: "GET", path: "/v1/reverse?lat=&lon=", implemented: false },
+  { method: "GET", path: "/v1/search?q=", implemented: true },
+  { method: "GET", path: "/v1/reverse?lat=&lon=", implemented: true },
   { method: "GET", path: "/v1/objects/{id}", implemented: true },
   { method: "GET", path: "/v1/objects/{id}/history", implemented: true },
   { method: "POST", path: "/v1/change-requests", implemented: true },
